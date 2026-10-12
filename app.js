@@ -140,12 +140,12 @@
     return { q, u: 'ml' };
   }
   function prezzoBase(pr, base) {
-    if (pr.manuale) return pr.acq;
-    if (base === 'ven') return pr.ven;
-    if (base === 'acqiva') return pr.acq == null ? null : pr.acq * (1 + (pr.iva || 0) / 100);
-    return pr.acq;
+    if (pr.manuale) return pr.acq != null ? pr.acq : pr.ven;
+    const acq = pr.acq, acqiva = acq == null ? null : acq * (1 + (pr.iva || 0) / 100);
+    let x = base === 'ven' ? pr.ven : base === 'acqiva' ? acqiva : acq;
+    if (x == null) x = base === 'ven' ? acqiva : pr.ven;   // se manca il prezzo scelto, usa l'altro invece di non calcolare
+    return x == null ? null : x;
   }
-  /* costo di una quantità: q in g, ml o pezzi; il prezzo del prodotto è al kg, al litro o al pezzo */
   const FATT = { g: 1, kg: 1000, ml: 1, l: 1000, cucchiaio: 15, cucchiaino: 5 };
   function costoIng(pr, q, u, base) {
     const x = prezzoBase(pr, base); if (x == null) return null;
@@ -545,7 +545,8 @@
       if (!fuoco('pv-ppm')) $('#pv-ppm').value = String(p.ppMenu == null ? c.propMenu : p.ppMenu);
       if (!fuoco('pv-forf')) $('#pv-forf').value = String(p.forfait == null ? c.propServ : p.forfait);
     }
-    const manca = c.mi.manca.length ? '<div class="stato avviso">Manca il prezzo di: ' + esc(c.mi.manca.join(', ')) + '. Il costo è calcolato senza.</div>' : '';
+    const manca = (!menuDi(p) ? '<div class="stato avviso">Scegli un menu: senza menu non posso calcolare il costo.</div>' : !(menuDi(p).piatti || []).length ? '<div class="stato avviso">Questo menu non ha piatti: aggiungili da Prepara → Menu.</div>' : '') +
+      (c.mi.manca.length ? '<div class="stato avviso">Manca il prezzo (o l\'unità non torna) di: ' + esc(c.mi.manca.join(', ')) + '. Il costo è calcolato senza: correggilo da Prepara → Prodotti o nel piatto.</div>' : '');
     if (p.tipo === 'pra') {
       $('#pv-costi').innerHTML = manca +
         riga('Ingredienti (' + c.pasti + ' pasti a settimana)', EUR.format(c.ing)) + riga('Cucina (' + c.giorni.length + ' giorni × ' + (+p.oreCucina || 0) + ' ore)', EUR.format(c.lav)) + riga('Consegne', EUR.format(c.cons)) +
@@ -763,7 +764,7 @@
     html += '<div class="sezione">Avvisi</div><div class="gruppo"><p class="piccolo" style="margin:0">Un avviso 10 minuti prima di ogni compito. Per ora arriva mentre l\'app è aperta; per averlo anche ad app chiusa serve il collegamento al server del negozio, che si aggiunge dopo.</p>' +
       (supporta ? '<button class="btn ' + (D.notifiche ? '' : 'primario') + '" data-act="notifiche">' + (D.notifiche ? 'Avvisi accesi: spegni' : 'Accendi gli avvisi') + '</button>' : '<p class="piccolo" style="margin:0">Questo telefono non supporta gli avvisi.</p>') + '</div>';
     html += '<div class="sezione">Copia di sicurezza</div><div class="gruppo"><button class="btn" data-act="backup">Salva backup</button><button class="btn" data-act="ripristina">Carica un backup</button><button class="btn pericolo" data-act="ripristina-compiti">Rimetti i compiti iniziali</button></div>';
-    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.3.1 · i dati restano su questo telefono.</p>';
+    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.3.2 · i dati restano su questo telefono.</p>';
     return html;
   }
 
