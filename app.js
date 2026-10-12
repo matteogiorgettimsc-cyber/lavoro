@@ -146,19 +146,15 @@
     return pr.acq;
   }
   /* costo di una quantità: q in g, ml o pezzi; il prezzo del prodotto è al kg, al litro o al pezzo */
+  const FATT = { g: 1, kg: 1000, ml: 1, l: 1000, cucchiaio: 15, cucchiaino: 5 };
   function costoIng(pr, q, u, base) {
     const x = prezzoBase(pr, base); if (x == null) return null;
-    if (pr.tipo === 'kg') return u === 'g' ? x * q / 1000 : null;
-    if (pr.tipo === 'l') return u === 'ml' ? x * q / 1000 : null;
+    if (pr.tipo === 'kg' || pr.tipo === 'l') return FATT[u] ? x * q * FATT[u] / 1000 : null;
     if (u === 'pz') return x * q;
-    if (pr.conf && pr.conf.u === u && pr.conf.q > 0) return x * q / pr.conf.q;
+    if (FATT[u] && pr.conf && FATT[pr.conf.u] && pr.conf.q > 0) return x * q * FATT[u] / (pr.conf.q * FATT[pr.conf.u]);
     return null;
   }
-  function unitaOk(pr, u) {
-    if (pr.tipo === 'kg') return u === 'g';
-    if (pr.tipo === 'l') return u === 'ml';
-    return u === 'pz' || !!(pr.conf && pr.conf.u === u);
-  }
+  function unitaOk(pr, u) { return costoIng({ tipo: pr.tipo, conf: pr.conf, acq: 1, ven: 1, iva: 0, manuale: true }, 1, u, 'ven') != null; }
   const unitaDefault = pr => (pr.tipo === 'kg' ? 'g' : pr.tipo === 'l' ? 'ml' : 'pz');
   function testoPrezzo(pr, base) {
     const x = prezzoBase(pr, base), su = pr.tipo === 'kg' ? '/kg' : pr.tipo === 'l' ? '/l' : '/pz';
@@ -181,6 +177,9 @@
   function fmtQ(q, u) {
     if (u === 'g') return q >= 1000 ? nf(q / 1000, 2) + ' kg' : nf(q, 0) + ' g';
     if (u === 'ml') return q >= 1000 ? nf(q / 1000, 2) + ' l' : nf(q, 0) + ' ml';
+    if (u === 'kg' || u === 'l') return nf(q, 2) + ' ' + u;
+    if (u === 'cucchiaio') return nf(q, 1) + (q === 1 ? ' cucchiaio' : ' cucchiai');
+    if (u === 'cucchiaino') return nf(q, 1) + (q === 1 ? ' cucchiaino' : ' cucchiaini');
     return nf(q, 1) + ' pz';
   }
   function listaIngredienti(m, mult, base) {
@@ -391,8 +390,8 @@
   function rigaIng(i) {
     const pr = i && prodotto(i.pid);
     return '<div class="ing-riga"><input class="in-nome" list="dl-prod" type="text" value="' + esc(pr ? pr.nome : '') + '" placeholder="Prodotto" autocomplete="off" aria-label="Prodotto">' +
-      '<input class="in-q" type="number" inputmode="decimal" min="0" step="any" value="' + esc(i ? i.q : '') + '" placeholder="Quanto" aria-label="Quantità per persona">' +
-      '<select class="in-u" aria-label="Unità">' + ['g', 'ml', 'pz'].map(u => '<option value="' + u + '"' + (i && i.u === u ? ' selected' : '') + '>' + u + '</option>').join('') + '</select>' +
+      '<input class="in-q" type="text" inputmode="decimal" pattern="[0-9.,]*" value="' + esc(i ? i.q : '') + '" placeholder="Quanto" aria-label="Quantità per persona">' +
+      '<select class="in-u" aria-label="Unità">' + ['g', 'kg', 'ml', 'l', 'pz', 'cucchiaio', 'cucchiaino'].map(u => '<option value="' + u + '"' + (i && i.u === u ? ' selected' : '') + '>' + (u === 'cucchiaio' ? 'cucchiai' : u === 'cucchiaino' ? 'cucchiaini' : u) + '</option>').join('') + '</select>' +
       '<button type="button" data-mact="togli-riga" aria-label="Togli ingrediente">✕</button></div>';
   }
   function editorPiatto(id) {
@@ -764,7 +763,7 @@
     html += '<div class="sezione">Avvisi</div><div class="gruppo"><p class="piccolo" style="margin:0">Un avviso 10 minuti prima di ogni compito. Per ora arriva mentre l\'app è aperta; per averlo anche ad app chiusa serve il collegamento al server del negozio, che si aggiunge dopo.</p>' +
       (supporta ? '<button class="btn ' + (D.notifiche ? '' : 'primario') + '" data-act="notifiche">' + (D.notifiche ? 'Avvisi accesi: spegni' : 'Accendi gli avvisi') + '</button>' : '<p class="piccolo" style="margin:0">Questo telefono non supporta gli avvisi.</p>') + '</div>';
     html += '<div class="sezione">Copia di sicurezza</div><div class="gruppo"><button class="btn" data-act="backup">Salva backup</button><button class="btn" data-act="ripristina">Carica un backup</button><button class="btn pericolo" data-act="ripristina-compiti">Rimetti i compiti iniziali</button></div>';
-    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.3.0 · i dati restano su questo telefono.</p>';
+    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.3.1 · i dati restano su questo telefono.</p>';
     return html;
   }
 
@@ -969,7 +968,6 @@
       if (righe.some(r => !(r.q > 0))) { toast('Scrivi la quantità di ogni ingrediente'); return; }
       const trova = n => D.prodotti.find(p => p.nome.toLowerCase() === n.toLowerCase());
       const noti = righe.filter(r => trova(r.nome));
-      for (const r of noti) { const pr = trova(r.nome); if (!unitaOk(pr, r.u)) { toast(pr.nome + ': usa ' + (pr.tipo === 'kg' ? 'g' : pr.tipo === 'l' ? 'ml' : 'pz') + ' per questo prodotto'); return; } }
       const ignoti = []; righe.forEach(r => { if (!trova(r.nome) && !ignoti.some(x => x.nome.toLowerCase() === r.nome.toLowerCase())) ignoti.push({ nome: r.nome, u: r.u }); });
       pendente = { id: id || uid(), nome, tipo: $('#pi-t').value, righe, ignoti };
       if (!ignoti.length) { MAZ['conferma-piatto'](); return; }
@@ -984,7 +982,6 @@
         const x = pendente.ignoti[i], prezzo = numero('np-p-' + i), tipo = $('#np-t-' + i).value;
         if (!(prezzo > 0)) { toast('Scrivi il prezzo di ' + x.nome); return; }
         const pr = { id: 'x_' + uid(), nome: x.nome, tipo, acq: prezzo, iva: 0, ven: prezzo, conf: null, manuale: true, origine: 'mano' };
-        if (!unitaOk(pr, x.u)) { toast(x.nome + ': ' + x.u + ' non va con un prezzo ' + (tipo === 'kg' ? 'al kg' : tipo === 'l' ? 'al litro' : 'al pezzo')); return; }
         nuovi.push(pr);
       }
       nuovi.forEach(pr => D.prodotti.push(pr));
