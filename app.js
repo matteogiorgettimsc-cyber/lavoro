@@ -270,7 +270,8 @@
     html += '<div class="kpi"><div><b>' + nF + '/' + lista.length + '</b><span>fatte</span></div>' +
       '<div><b>' + (prossimo ? prossimo.da : '–') + '</b><span>prossimo</span></div>' +
       '<div class="' + (ritardo ? 'rosso' : '') + '"><b>' + ritardo + '</b><span>in ritardo</span></div></div>';
-    if (!lista.length) return html + '<div class="vuoto">Nessun compito per oggi.</div>';
+    const aggiungi = '<div class="azioni"><button class="btn" data-act="nuovo-oggi">+ Aggiungi un lavoro per oggi</button></div>';
+    if (!lista.length) return html + '<div class="vuoto">Nessun compito per oggi.</div>' + aggiungi;
     html += '<ul class="tempo">';
     lista.forEach(t => {
       const f = fatta(t), inCorso = !f && minuti(t.da) <= nm && nm < minuti(t.a), tardi = !f && minuti(t.a) <= nm;
@@ -280,10 +281,10 @@
       if (tardi) tag += '<span class="tag ritardo">IN RITARDO</span>';
       if (t.chi.length > 1) tag += '<span class="tag">con ' + NOME[altra(p)] + '</span>';
       html += '<li class="slot ' + classe + '"><div class="when"><b>' + esc(t.da) + '</b><span>' + esc(t.a) + '</span></div><div class="rail"></div>' +
-        '<div class="scheda"><div><div class="tit">' + esc(t.t) + '</div>' + (t.n ? '<div class="nota">' + esc(t.n) + '</div>' : '') + (tag ? '<div class="tags">' + tag + '</div>' : '') + '</div>' +
+        '<div class="scheda"><div><div class="tit">' + esc(t.t) + '</div>' + (t.n ? '<div class="nota">' + esc(t.n) + '</div>' : '') + (tag ? '<div class="tags">' + tag + '</div>' : '') + '<button class="modifica" data-act="apri-compito" data-id="' + esc(t.id) + '">Modifica</button></div>' +
         '<button class="check" data-act="spunta" data-id="' + esc(t.id) + '" aria-label="' + (f ? 'Rimetti da fare: ' : 'Segna fatto: ') + esc(t.t) + '">' + SVG_OK + '</button></div></li>';
     });
-    return html + '</ul>';
+    return html + '</ul>' + aggiungi;
   }
 
   function viewSettimana() {
@@ -302,8 +303,8 @@
     return html;
   }
 
-  function editorCompito(id) {
-    const t = id ? D.compiti.find(x => x.id === id) : { id: null, t: '', n: '', da: '09:00', a: '09:30', chi: [D.profilo], g: [S.giorno], data: null };
+  function editorCompito(id, oggi) {
+    const t = id ? D.compiti.find(x => x.id === id) : { id: null, t: '', n: '', da: '09:00', a: '09:30', chi: [D.profilo], g: [S.giorno], data: oggi ? iso(new Date()) : null };
     if (!t) return;
     const unaVolta = !!t.data;
     apriModale('<h2>' + (id ? 'Modifica compito' : 'Nuovo compito') + '</h2>' +
@@ -763,7 +764,7 @@
     html += '<div class="sezione">Avvisi</div><div class="gruppo"><p class="piccolo" style="margin:0">Un avviso 10 minuti prima di ogni compito. Per ora arriva mentre l\'app è aperta; per averlo anche ad app chiusa serve il collegamento al server del negozio, che si aggiunge dopo.</p>' +
       (supporta ? '<button class="btn ' + (D.notifiche ? '' : 'primario') + '" data-act="notifiche">' + (D.notifiche ? 'Avvisi accesi: spegni' : 'Accendi gli avvisi') + '</button>' : '<p class="piccolo" style="margin:0">Questo telefono non supporta gli avvisi.</p>') + '</div>';
     html += '<div class="sezione">Copia di sicurezza</div><div class="gruppo"><button class="btn" data-act="backup">Salva backup</button><button class="btn" data-act="ripristina">Carica un backup</button><button class="btn pericolo" data-act="ripristina-compiti">Rimetti i compiti iniziali</button></div>';
-    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.2.1 · i dati restano su questo telefono.</p>';
+    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.3.0 · i dati restano su questo telefono.</p>';
     return html;
   }
 
@@ -846,6 +847,7 @@
     giorno(b) { S.giorno = +b.dataset.g; render(); },
     filtro(b) { S.chi = b.dataset.f; render(); },
     'nuovo-compito'() { editorCompito(null); },
+    'nuovo-oggi'() { editorCompito(null, true); },
     'apri-compito'(b) { editorCompito(b.dataset.id); },
     esempi() { caricaEsempi(); render(); toast('Dati d\'esempio caricati'); },
     'togli-esempi'() { togliEsempi(); render(); toast('Dati d\'esempio tolti'); },

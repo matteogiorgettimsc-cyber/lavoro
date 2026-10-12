@@ -188,3 +188,5 @@ dialog::backdrop { background: rgba(8, 16, 28, 0.55); }
 .benvenuto { min-height: 80vh; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
 .benvenuto .btn { min-height: 64px; font-size: 1.2rem; text-align: left; padding: 0 20px; }
 @media (prefers-reduced-motion: no-preference) { .check { transition: background 0.15s; } }
+
+.modifica { background: none; border: 0; padding: 6px 0 0; color: var(--blue); font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; text-decoration: underline; }
