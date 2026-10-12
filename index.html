@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#10243E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Lavoro">
+<title>Lavoro – La Spesa Sfusa</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main id="view" tabindex="-1"></main>
+
+<nav class="nav" id="nav" aria-label="Sezioni" hidden>
+  <a href="#oggi" data-tab="oggi">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span>Oggi</span>
+  </a>
+  <a href="#settimana" data-tab="settimana">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <span>Settimana</span>
+  </a>
+  <a href="#preventivi" data-tab="preventivi">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>
+    <span>Preventivi</span>
+  </a>
+  <a href="#prepara" data-tab="prepara">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h4M12 7h8M4 12h10M18 12h2M4 17h2M10 17h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+    <span>Prepara</span>
+  </a>
+  <a href="#impostazioni" data-tab="impostazioni">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <span>Altro</span>
+  </a>
+</nav>
+
+<dialog id="modal"><div id="modalBody"></div></dialog>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<input type="file" id="fileInput" accept=".json,.txt,text/plain,application/json,image/*" hidden>
+
+<script src="app.js"></script>
+</body>
+</html>
