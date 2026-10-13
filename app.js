@@ -30,7 +30,7 @@
   function predefiniti() {
     const c = (id, da, a, t, chi, g, n) => ({ id, t, n: n || '', da, a, chi, g, data: null });
     return {
-      v: 2, profilo: null, azienda: { nome: 'La Spesa Sfusa di Mancini Anita', indirizzo: 'Via Lazio 66, 63812 Montegranaro (FM)', tel: '331 405 2958', email: 'laspesasfusa@gmail.com', piva: '02174870440', pec: 'laspesasfusa@pec.it', logo: '' }, ricarico: 50, notifiche: false, fatti: {}, preventivi: [],
+      v: 2, pesi: {}, profilo: null, azienda: { nome: 'La Spesa Sfusa di Mancini Anita', indirizzo: 'Via Lazio 66, 63812 Montegranaro (FM)', tel: '331 405 2958', email: 'laspesasfusa@gmail.com', piva: '02174870440', pec: 'laspesasfusa@pec.it', logo: '' }, ricarico: 50, notifiche: false, fatti: {}, preventivi: [],
       prodotti: [], piatti: [], menu: [],
       servizio: { pers: { ogni: 25, min: 2, ore: 6, tar: 12 }, allest: [], extra: [] },
       basePrezzo: { cat: 'acq', pra: 'acq', ces: 'ven' },
@@ -59,6 +59,7 @@
   function migra(o) {
     const d = Object.assign(predefiniti(), o || {});
     d.azienda = Object.assign({ nome: 'La Spesa Sfusa di Mancini Anita', indirizzo: 'Via Lazio 66, 63812 Montegranaro (FM)', tel: '331 405 2958', email: 'laspesasfusa@gmail.com', piva: '02174870440', pec: 'laspesasfusa@pec.it', logo: '' }, d.azienda || {});
+    if (!d.pesi || typeof d.pesi !== 'object') d.pesi = {};
     if (!Array.isArray(d.menu)) d.menu = [];
     if (!Array.isArray(d.prodotti)) d.prodotti = [];
     if (!Array.isArray(d.piatti)) d.piatti = [];
@@ -764,7 +765,7 @@
     html += '<div class="sezione">Avvisi</div><div class="gruppo"><p class="piccolo" style="margin:0">Un avviso 10 minuti prima di ogni compito. Per ora arriva mentre l\'app è aperta; per averlo anche ad app chiusa serve il collegamento al server del negozio, che si aggiunge dopo.</p>' +
       (supporta ? '<button class="btn ' + (D.notifiche ? '' : 'primario') + '" data-act="notifiche">' + (D.notifiche ? 'Avvisi accesi: spegni' : 'Accendi gli avvisi') + '</button>' : '<p class="piccolo" style="margin:0">Questo telefono non supporta gli avvisi.</p>') + '</div>';
     html += '<div class="sezione">Copia di sicurezza</div><div class="gruppo"><button class="btn" data-act="backup">Salva backup</button><button class="btn" data-act="ripristina">Carica un backup</button><button class="btn pericolo" data-act="ripristina-compiti">Rimetti i compiti iniziali</button></div>';
-    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.3.2 · i dati restano su questo telefono.</p>';
+    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.4.0 · i dati restano su questo telefono.</p>';
     return html;
   }
 
@@ -836,6 +837,17 @@
      Azioni
      ========================================================= */
   let fileMode = 'lavoro';
+  function chiediPrezzi() {
+      apriModale('<h2>Quanto costano?</h2><p class="piccolo">Questi ingredienti non sono in elenco. Scrivi il prezzo e li aggiungo.</p>' +
+        pendente.ignoti.map((x, i) => '<div class="menu-riga nuovo"><span><b>' + esc(x.nome) + '</b></span><input id="np-p-' + i + '" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Prezzo €" aria-label="Prezzo di ' + esc(x.nome) + '"><select id="np-t-' + i + '" aria-label="Al">' + [['kg', 'al kg'], ['l', 'al litro'], ['pz', 'al pezzo']].map(o => '<option value="' + o[0] + '"' + (o[0] === (x.u === 'g' ? 'kg' : x.u === 'ml' ? 'l' : 'pz') ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></div>').join('') +
+        '<div class="azioni"><button class="btn primario" data-mact="prezzi-nuovi">Salva piatto</button><button class="btn" data-mact="chiudi">Annulla</button></div>');
+
+  }
+  function chiediPesi() {
+    apriModale('<h2>Quanto pesa la confezione?</h2><p class="piccolo">In Magazzino queste confezioni sono contate a pezzi. Scrivi una volta quanto pesa o quanto contiene una confezione: il piatto lo usa per calcolare il costo.</p>' +
+      pendente.senzaPeso.map((x, i) => '<div class="menu-riga nuovo"><span><b>' + esc(x.nome) + '</b><br><span class="piccolo">1 confezione =</span></span><input id="pw-q-' + i + '" type="text" inputmode="decimal" placeholder="Quanto" aria-label="Peso di ' + esc(x.nome) + '"><select id="pw-u-' + i + '" aria-label="Unità">' + ['g', 'kg', 'ml', 'l'].map(u => '<option value="' + u + '"' + ((u === 'g' && x.u !== 'ml') || u === x.u ? ' selected' : '') + '>' + u + '</option>').join('') + '</select></div>').join('') +
+      '<div class="azioni"><button class="btn primario" data-mact="salva-pesi">Continua</button><button class="btn" data-mact="chiudi">Annulla</button></div>');
+  }
   const AZ = {
     scegli(b) { D.profilo = b.dataset.p; salva(); location.hash = '#oggi'; render(); },
     profilo(b) { D.profilo = b.dataset.p; salva(); render(); toast('Questo telefono mostra i compiti di ' + NOME[D.profilo]); },
@@ -969,12 +981,24 @@
       if (righe.some(r => !(r.q > 0))) { toast('Scrivi la quantità di ogni ingrediente'); return; }
       const trova = n => D.prodotti.find(p => p.nome.toLowerCase() === n.toLowerCase());
       const noti = righe.filter(r => trova(r.nome));
+      const senzaPeso = []; noti.forEach(r => { const pr = trova(r.nome); if (!unitaOk(pr, r.u) && pr.tipo === 'pz' && FATT[r.u] && !senzaPeso.some(x => x.id === pr.id)) senzaPeso.push({ id: pr.id, nome: pr.nome, u: r.u }); });
       const ignoti = []; righe.forEach(r => { if (!trova(r.nome) && !ignoti.some(x => x.nome.toLowerCase() === r.nome.toLowerCase())) ignoti.push({ nome: r.nome, u: r.u }); });
       pendente = { id: id || uid(), nome, tipo: $('#pi-t').value, righe, ignoti };
+      pendente.senzaPeso = senzaPeso;
+      if (senzaPeso.length) { chiediPesi(); return; }
       if (!ignoti.length) { MAZ['conferma-piatto'](); return; }
-      apriModale('<h2>Quanto costano?</h2><p class="piccolo">Questi ingredienti non sono in elenco. Scrivi il prezzo e li aggiungo.</p>' +
-        ignoti.map((x, i) => '<div class="menu-riga nuovo"><span><b>' + esc(x.nome) + '</b></span><input id="np-p-' + i + '" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Prezzo €" aria-label="Prezzo di ' + esc(x.nome) + '"><select id="np-t-' + i + '" aria-label="Al">' + [['kg', 'al kg'], ['l', 'al litro'], ['pz', 'al pezzo']].map(o => '<option value="' + o[0] + '"' + (o[0] === (x.u === 'g' ? 'kg' : x.u === 'ml' ? 'l' : 'pz') ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></div>').join('') +
-        '<div class="azioni"><button class="btn primario" data-mact="prezzi-nuovi">Salva piatto</button><button class="btn" data-mact="chiudi">Annulla</button></div>');
+      chiediPrezzi();
+    },
+    'salva-pesi'() {
+      if (!pendente) return;
+      for (let i = 0; i < pendente.senzaPeso.length; i++) {
+        const x = pendente.senzaPeso[i], q = numero('pw-q-' + i), u = $('#pw-u-' + i).value;
+        if (!(q > 0)) { toast('Scrivi quanto pesa ' + x.nome); return; }
+        const conf = { q: q * FATT[u], u: (u === 'kg' || u === 'g') ? 'g' : 'ml' };
+        const pr = prodotto(x.id); if (pr) { pr.conf = conf; D.pesi[pr.id] = conf; }
+      }
+      salva(); pendente.senzaPeso = [];
+      if (pendente.ignoti.length) chiediPrezzi(); else MAZ['conferma-piatto']();
     },
     'prezzi-nuovi'() {
       if (!pendente) return;
@@ -1061,7 +1085,7 @@
             const sf = !!x.sfuso, tipo = sf ? (x.unita === 'l' ? 'l' : 'kg') : 'pz';
             const iva = x.iva == null ? null : +x.iva, acq = x.prezzoAcquisto == null ? null : +x.prezzoAcquisto, ric = x.ricarico || 50;
             const ven = x.prezzoManuale != null ? +x.prezzoManuale : (acq != null && iva != null ? Math.ceil(acq * (1 + ric / 100) * (1 + iva / 100) * 10 - 1e-9) / 10 : null);
-            return { id: 'm_' + x.id, nome: x.nome, tipo, acq, iva, ven, conf: sf ? null : parseFormato(x.formato), origine: 'magazzino', cat: x.categoria || '' };
+            return { id: 'm_' + x.id, nome: x.nome, tipo, acq, iva, ven, conf: sf ? null : (D.pesi['m_' + x.id] || parseFormato(x.formato) || parseFormato(x.nome)), origine: 'magazzino', cat: x.categoria || '' };
           });
           D.prodotti = D.prodotti.filter(p => p.origine !== 'magazzino').concat(nuovi); salva(); render();
           toast(nuovi.length + ' prodotti caricati dal Magazzino');
