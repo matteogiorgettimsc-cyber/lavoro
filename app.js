@@ -77,7 +77,170 @@
     } catch (e) { }
     return predefiniti();
   }
-  function salva() { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) { } }
+  function salva() { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) { } if (typeof syPresto === 'function') { try { syPresto(); } catch (e) { } } }
+
+  /* =========================================================
+     Più telefoni insieme (stesso Firebase di Magazzino)
+     - ogni compito, piatto, menu, preventivo, prodotto, spunta e impostazione è un "record"
+     - vince la modifica più recente; chi cancella lascia un segno, così la cancellazione arriva anche agli altri
+     - la password si scrive una volta sola su ogni telefono e non finisce nel backup
+     ========================================================= */
+  const SYNC_CONF = { apiKey: 'AIzaSyBj_vigsG7m3jQg3MaRSBTwoKkXcPB3HKk', projectId: 'magazzino-spesa-sfusa-69c90', email: 'laspesasfusa@gmail.com' };
+  const SYKEY = 'lavoro-sync-v1';
+  let SY = (() => { try { const o = JSON.parse(localStorage.getItem(SYKEY)); if (o && o.rec) return o; } catch (e) { } return { auth: null, da: null, rec: {} }; })();
+  const sySalva = () => { try { localStorage.setItem(SYKEY, JSON.stringify(SY)); } catch (e) { } };
+  const SYS = { stato: 'spento', msg: '', ultimo: null, corre: false, ancora: false, timer: null, presto: null, ridisegna: false };
+  const syAttiva = () => !!(SY.auth && SY.auth.refreshToken);
+  const fsBase = () => 'projects/' + SYNC_CONF.projectId + '/databases/(default)/documents';
+  const syDocId = k => encodeURIComponent('lavoro~' + k);
+  function syEntita() {
+    const m = new Map();
+    const arr = (nome, lista) => (lista || []).forEach(x => { if (x && x.id != null) m.set(nome + '~' + x.id, x); });
+    arr('compiti', D.compiti); arr('piatti', D.piatti); arr('menu', D.menu); arr('preventivi', D.preventivi);
+    arr('prodotti', (D.prodotti || []).filter(p => p.origine !== 'esempio'));
+    Object.keys(D.fatti || {}).forEach(k => { if (D.fatti[k]) m.set('fatti~' + k, true); });
+    m.set('cfg~azienda', D.azienda); m.set('cfg~servizio', D.servizio); m.set('cfg~pesi', D.pesi);
+    m.set('cfg~prezzi', { ricarico: D.ricarico, basePrezzo: D.basePrezzo });
+    return m;
+  }
+  function syApplica(key, val, del) {
+    const i = key.indexOf('~'), tipo = key.slice(0, i), id = key.slice(i + 1);
+    if (['compiti', 'piatti', 'menu', 'preventivi', 'prodotti'].indexOf(tipo) > -1) {
+      D[tipo] = (D[tipo] || []).filter(x => String(x.id) !== id);
+      if (!del && val) D[tipo].push(val);
+    } else if (tipo === 'fatti') { if (del) delete D.fatti[id]; else D.fatti[id] = true; }
+    else if (key === 'cfg~azienda' && val) D.azienda = Object.assign(D.azienda, val);
+    else if (key === 'cfg~servizio' && val) D.servizio = val;
+    else if (key === 'cfg~pesi' && val) D.pesi = val;
+    else if (key === 'cfg~prezzi' && val) { D.ricarico = val.ricarico; D.basePrezzo = Object.assign(D.basePrezzo, val.basePrezzo); }
+  }
+  async function syAccedi(password) {
+    let r;
+    try { r = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + encodeURIComponent(SYNC_CONF.apiKey), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: SYNC_CONF.email, password, returnSecureToken: true }) }); }
+    catch (e) { throw new Error('Serve internet per collegare il telefono'); }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const m = (j.error && j.error.message) || '';
+      if (/INVALID_LOGIN_CREDENTIALS|INVALID_PASSWORD|EMAIL_NOT_FOUND|MISSING_PASSWORD/.test(m)) throw new Error('Password sbagliata (è la stessa di Magazzino)');
+      if (/TOO_MANY_ATTEMPTS/.test(m)) throw new Error('Troppi tentativi: riprova tra qualche minuto');
+      throw new Error('Accesso non riuscito' + (m ? ': ' + m : ''));
+    }
+    return { idToken: j.idToken, refreshToken: j.refreshToken, exp: Date.now() + (+j.expiresIn || 3600) * 1000 };
+  }
+  async function syToken() {
+    const a = SY.auth; if (!a) throw new Error('Telefono non collegato');
+    if (a.idToken && a.exp - 120000 > Date.now()) return a.idToken;
+    const r = await fetch('https://securetoken.googleapis.com/v1/token?key=' + encodeURIComponent(SYNC_CONF.apiKey), { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'grant_type=refresh_token&refresh_token=' + encodeURIComponent(a.refreshToken) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { const e = new Error(r.status >= 400 && r.status < 500 ? 'Accesso scaduto: ricollega il telefono in Altro' : 'Il server non risponde'); e.accesso = r.status >= 400 && r.status < 500; throw e; }
+    SY.auth = Object.assign({}, a, { idToken: j.id_token, refreshToken: j.refresh_token || a.refreshToken, exp: Date.now() + (+j.expires_in || 3600) * 1000 }); sySalva();
+    return SY.auth.idToken;
+  }
+  async function syFs(path, body, riprova = true) {
+    const t = await syToken();
+    const r = await fetch('https://firestore.googleapis.com/v1/' + fsBase() + path, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t }, body: JSON.stringify(body) });
+    if (r.status === 401 && riprova) { SY.auth.exp = 0; return syFs(path, body, false); }
+    const j = await r.json().catch(() => null);
+    if (!r.ok) {
+      const m = (j && j.error && j.error.message) || r.statusText || String(r.status);
+      throw new Error(r.status === 403 ? 'Il server non accetta questa scrittura: le regole di Firestore vanno aperte anche ai dati di Lavoro' : 'Errore del server: ' + m);
+    }
+    return j;
+  }
+  function syRileva() {   // cosa è cambiato su questo telefono dall'ultima volta
+    const ent = syEntita(), ora = Date.now();
+    ent.forEach((val, key) => {
+      const h = JSON.stringify(val), s = SY.rec[key];
+      if (!s || s.del || s.h !== h) SY.rec[key] = { u: ora, h, p: 1 };
+    });
+    Object.keys(SY.rec).forEach(key => { const s = SY.rec[key]; if (!ent.has(key) && !s.del) SY.rec[key] = { u: ora, del: 1, p: 1 }; });
+  }
+  async function syInvia() {
+    const voci = Object.keys(SY.rec).filter(k => SY.rec[k].p); if (!voci.length) return 0;
+    const ent = syEntita(), nb = fsBase();
+    for (let i = 0; i < voci.length; i += 400) {
+      const parte = voci.slice(i, i + 400), inviati = parte.map(k => [k, SY.rec[k].u]);
+      await syFs(':commit', { writes: parte.map(k => {
+        const s = SY.rec[k], fields = { st: { stringValue: 'lavoro' }, rid: { stringValue: k }, del: { booleanValue: !!s.del }, u: { doubleValue: s.u } }, mask = ['st', 'rid', 'del', 'u'];
+        if (!s.del) { fields.f_v = { stringValue: JSON.stringify(ent.get(k) === undefined ? null : ent.get(k)) }; mask.push('f_v'); }
+        return { update: { name: nb + '/dati/' + syDocId(k), fields }, updateMask: { fieldPaths: mask }, updateTransforms: [{ fieldPath: 'lsrv', setToServerValue: 'REQUEST_TIME' }] };
+      }) });
+      inviati.forEach(([k, u]) => { if (SY.rec[k] && SY.rec[k].u === u) delete SY.rec[k].p; });
+      sySalva();
+    }
+    return voci.length;
+  }
+  async function syRicevi() {
+    const LIM = 300, da = SY.da ? new Date(Date.parse(SY.da) - 15000).toISOString() : '1970-01-01T00:00:00Z';
+    let cursore = null, max = SY.da, n = 0;
+    for (;;) {
+      const q = { from: [{ collectionId: 'dati' }], where: { fieldFilter: { field: { fieldPath: 'lsrv' }, op: 'GREATER_THAN_OR_EQUAL', value: { timestampValue: da } } },
+        orderBy: [{ field: { fieldPath: 'lsrv' }, direction: 'ASCENDING' }, { field: { fieldPath: '__name__' }, direction: 'ASCENDING' }], limit: LIM };
+      if (cursore) q.startAt = { values: [{ timestampValue: cursore.srv }, { referenceValue: cursore.name }], before: false };
+      const docs = ((await syFs(':runQuery', { structuredQuery: q })) || []).filter(x => x.document).map(x => x.document);
+      docs.forEach(d => {
+        const f = d.fields || {}, key = f.rid && f.rid.stringValue, srv = f.lsrv && f.lsrv.timestampValue;
+        if (srv && (!max || Date.parse(srv) > Date.parse(max))) max = srv;
+        if (!key || !(f.st && f.st.stringValue === 'lavoro')) return;
+        const u = +(f.u && (f.u.doubleValue != null ? f.u.doubleValue : f.u.integerValue)) || 0, loc = SY.rec[key], del = !!(f.del && f.del.booleanValue);
+        if (loc && loc.u >= u) return;                       // la mia modifica è più recente (o uguale)
+        let val = null; if (!del) { try { val = JSON.parse(f.f_v.stringValue); } catch (e) { return; } }
+        syApplica(key, val, del);
+        SY.rec[key] = del ? { u, del: 1 } : { u, h: JSON.stringify(val) }; n++;
+      });
+      if (docs.length < LIM) break;
+      const ul = docs[docs.length - 1]; cursore = { srv: ul.fields.lsrv.timestampValue, name: ul.name };
+    }
+    if (n) { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) { } }
+    if (max && max !== SY.da) SY.da = max;
+    sySalva();
+    return n;
+  }
+  async function syGiro() {
+    if (!syAttiva()) return;
+    if (SYS.corre) { SYS.ancora = true; return; }
+    SYS.corre = true;
+    try {
+      if (navigator.onLine === false) { SYS.stato = 'offline'; return; }
+      let volte = 0;
+      do {
+        SYS.ancora = false;
+        let n = 0;
+        if (!SY.da) n += await syRicevi();      // primo collegamento: prima prendo quello che c'è, poi mando il resto
+        syRileva();
+        n += await syRicevi();
+        await syInvia();
+        SYS.stato = 'ok'; SYS.msg = ''; SYS.ultimo = Date.now();
+        if (n) syVista();
+      } while (SYS.ancora && ++volte < 3);
+    } catch (e) { SYS.stato = e.accesso ? 'accesso' : e instanceof TypeError ? 'offline' : 'errore'; SYS.msg = e.message; }
+    finally { SYS.corre = false; syMostra(); }
+  }
+  function syVista() {   // arrivano modifiche dagli altri: si ridisegna, ma non mentre si scrive
+    const ae = document.activeElement;
+    if ($('#modal').open || (ae && ae.matches && ae.matches('input,textarea,select'))) { SYS.ridisegna = true; return; }
+    SYS.ridisegna = false; render();
+  }
+  function syPresto() { if (!syAttiva()) return; clearTimeout(SYS.presto); SYS.presto = setTimeout(syGiro, 1500); }
+  function syAvvia() {
+    clearInterval(SYS.timer);
+    if (!syAttiva()) { SYS.stato = 'spento'; return; }
+    SYS.timer = setInterval(() => { if (!document.hidden) syGiro(); }, 30000);
+    syGiro();
+  }
+  function syTesto() {
+    const adesso = SYS.ultimo ? new Date(SYS.ultimo).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : '';
+    switch (SYS.stato) {
+      case 'ok': return 'Sincronizzato alle ' + adesso;
+      case 'offline': return 'Senza internet: si sincronizza appena torna.';
+      case 'accesso': return 'Accesso scaduto: ricollega il telefono.';
+      case 'errore': return 'Non riuscita: ' + SYS.msg;
+      default: return syAttiva() ? 'Sincronizzo…' : '';
+    }
+  }
+  function syMostra() { const el = document.getElementById('syStato'); if (el) el.textContent = syTesto(); }
+  window.addEventListener('online', () => syGiro());
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) syGiro(); });
 
   /* =========================================================
      Utilità
@@ -764,8 +927,11 @@
     const supporta = 'Notification' in window;
     html += '<div class="sezione">Avvisi</div><div class="gruppo"><p class="piccolo" style="margin:0">Un avviso 10 minuti prima di ogni compito. Per ora arriva mentre l\'app è aperta; per averlo anche ad app chiusa serve il collegamento al server del negozio, che si aggiunge dopo.</p>' +
       (supporta ? '<button class="btn ' + (D.notifiche ? '' : 'primario') + '" data-act="notifiche">' + (D.notifiche ? 'Avvisi accesi: spegni' : 'Accendi gli avvisi') + '</button>' : '<p class="piccolo" style="margin:0">Questo telefono non supporta gli avvisi.</p>') + '</div>';
+    html += '<div class="sezione">Più telefoni insieme</div><div class="gruppo">' + (syAttiva()
+      ? '<p class="piccolo" style="margin:0 0 8px">Questo telefono è collegato: compiti, spunte, piatti, menu e preventivi sono uguali su tutti i telefoni collegati.</p><p class="piccolo" id="syStato" style="margin:0 0 10px">' + esc(syTesto()) + '</p><button class="btn" data-act="sync-ora">Sincronizza ora</button><button class="btn" data-act="sync-scollega">Scollega questo telefono</button>'
+      : '<p class="piccolo" style="margin:0 0 8px">Collega questo telefono al negozio, così mamma e Alessia vedono le stesse cose. Si usa la stessa email e la stessa password di Magazzino (' + esc(SYNC_CONF.email) + '). Si scrive una volta sola su ogni telefono; serve internet.</p><label class="campo largo"><span>Password del negozio</span><input id="sy-pw" type="password" autocomplete="current-password"></label><button class="btn primario" data-act="sync-collega">Collega questo telefono</button>') + '</div>';
     html += '<div class="sezione">Copia di sicurezza</div><div class="gruppo"><button class="btn" data-act="backup">Salva backup</button><button class="btn" data-act="ripristina">Carica un backup</button><button class="btn pericolo" data-act="ripristina-compiti">Rimetti i compiti iniziali</button></div>';
-    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.4.1 · i dati restano su questo telefono.</p>';
+    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.5.0 · i dati restano su questo telefono.</p>';
     return html;
   }
 
@@ -860,6 +1026,13 @@
     filtro(b) { S.chi = b.dataset.f; render(); },
     'nuovo-compito'() { editorCompito(null); },
     'nuovo-oggi'() { editorCompito(null, true); },
+    async 'sync-collega'() {
+      const pw = ($('#sy-pw') || {}).value || ''; if (!pw) { toast('Scrivi la password'); return; }
+      try { SY.auth = await syAccedi(pw); SY.da = null; sySalva(); toast('Telefono collegato'); syAvvia(); render(); } catch (e) { toast(e.message); }
+    },
+    'sync-ora'() { syGiro().then(() => { toast(syTesto()); render(); }); },
+    'sync-scollega'() { SY = { auth: null, da: null, rec: {} }; sySalva(); clearInterval(SYS.timer); SYS.stato = 'spento'; render(); toast('Telefono scollegato'); },
+
     'apri-compito'(b) { editorCompito(b.dataset.id); },
     esempi() { caricaEsempi(); render(); toast('Dati d\'esempio caricati'); },
     'togli-esempi'() { togliEsempi(); render(); toast('Dati d\'esempio tolti'); },
@@ -1145,6 +1318,7 @@
       else { try { new Notification(testo, { body: corpo }); } catch (e) { } }
     });
   }
+  syAvvia();
   setInterval(() => { controllaAvvisi(); if (!document.hidden && (location.hash || '#oggi') === '#oggi' && !$('#modal').open) render(); }, 60000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { controllaAvvisi(); if ((location.hash || '#oggi') === '#oggi') render(); } });
 
