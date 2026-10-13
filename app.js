@@ -379,7 +379,7 @@
       const giorni = (p.giorni || []).slice().sort();
       const pasti = Math.max(1, giorni.reduce((s, g) => s + (+p.pasti[g] || 0), 0));
       const ing = pasti * mi.pp, lav = giorni.length * (+p.oreCucina || 0) * (+S.tar || 0), cons = giorni.length * (+p.consegna || 0);
-      const costo = ing + lav + cons, prop = Math.ceil(costo * (1 + ric / 100) / pasti * 10) / 10, pp = p.pp == null ? prop : +p.pp;
+      const costo = ing + lav + cons, prop = Math.ceil((ing * (1 + ric / 100) + lav + cons) / pasti * 10) / 10, pp = p.pp == null ? prop : +p.pp;
       const ricavo = pp * pasti;
       return { tipo: 'pra', mi, giorni, pasti, ing, lav, cons, costo, ric, prop, pp, ricavo, marg: ricavo - costo, pct: ricavo ? (ricavo - costo) / ricavo * 100 : 0,
         periodo: ricavo * (+p.settimane || 1), mese: ricavo * 52 / 12 };
@@ -391,7 +391,7 @@
     const extra = D.servizio.extra.filter(a => (p.extra || []).indexOf(a.id) > -1).reduce((s, a) => s + (+a.p || 0), 0) + (+p.extraMano || 0);
     const costoMenuTot = mi.pp * n, costoServ = pers + allest + extra, costo = costoMenuTot + costoServ;
     const propMenu = p.tipo === 'cat' ? Math.ceil(mi.pp * (1 + ric / 100)) : Math.ceil(mi.pp * (1 + ric / 100) * 10) / 10;
-    const propServ = Math.ceil(costoServ * (1 + ric / 100) / 10) * 10;
+    const propServ = Math.ceil(costoServ / 10) * 10;   // personale, allestimento ed extra: a costo, il ricarico è solo sui prodotti
     const ppMenu = p.ppMenu == null ? propMenu : +p.ppMenu, forfait = p.forfait == null ? propServ : +p.forfait;
     const ricavoMenu = ppMenu * n, totale = ricavoMenu + forfait;
     const unico = p.tipo === 'cat' ? Math.ceil(totale / n) : Math.ceil(totale / n * 10) / 10;
@@ -667,7 +667,7 @@
       html += '<label class="campo"><span>Costo allestimento (€)</span><input id="pv-am" type="number" inputmode="decimal" min="0" value="' + esc(p.allestMano || 0) + '"></label>';
       html += '<label class="campo"><span>Altri extra (€)</span><input id="pv-xm" type="number" inputmode="decimal" min="0" value="' + esc(p.extraMano) + '"></label>';
     }
-    html += '<label class="campo"><span>Ricarico (%)</span><input id="pv-ric" type="number" inputmode="decimal" min="0" value="' + esc(p.ric) + '"></label>';
+    html += '<label class="campo"><span>Ricarico sui prodotti (%)</span><input id="pv-ric" type="number" inputmode="decimal" min="0" value="' + esc(p.ric) + '"></label>';
     if (p.tipo === 'pra') html += '<label class="campo largo"><span>Prezzo a pasto (€)</span><input id="pv-pp" type="number" inputmode="decimal" min="0" step="0.1"></label>';
     else {
       html += '<label class="campo"><span>' + (p.tipo === 'cat' ? 'Menu a persona (€)' : 'Prezzo a pezzo (€)') + '</span><input id="pv-ppm" type="number" inputmode="decimal" min="0" step="0.1"></label>' +
@@ -716,7 +716,7 @@
     if (p.tipo === 'pra') {
       $('#pv-costi').innerHTML = manca +
         riga('Ingredienti (' + c.pasti + ' pasti a settimana)', EUR.format(c.ing)) + riga('Cucina (' + c.giorni.length + ' giorni × ' + (+p.oreCucina || 0) + ' ore)', EUR.format(c.lav)) + riga('Consegne', EUR.format(c.cons)) +
-        riga('Costo a settimana', EUR.format(c.costo), true) + riga('Prezzo proposto (ricarico ' + c.ric + '%)', EUR.format(c.prop) + ' a pasto');
+        riga('Costo a settimana', EUR.format(c.costo), true) + riga('Prezzo proposto (ricarico ' + c.ric + '% sui prodotti)', EUR.format(c.prop) + ' a pasto');
     } else {
       $('#pv-costi').innerHTML = manca +
         riga('Ingredienti (' + c.n + ' × ' + EUR.format(c.mi.pp) + ')', EUR.format(c.costoMenuTot)) +
@@ -727,7 +727,7 @@
     }
     const sotto = p.tipo === 'pra' ? c.pp < c.prop : (c.ppMenu < c.propMenu || c.forfait < c.propServ);
     $('#pv-margine').innerHTML = '<div class="stato ' + (sotto ? 'avviso' : 'ok') + '"><strong>Margine ' + EUR.format(c.marg) + '</strong> (' + Math.round(c.pct) + '% del prezzo)<br>' +
-      (sotto ? 'Almeno una voce è sotto il tuo ricarico del ' + c.ric + '%.' : 'Rispetta il tuo ricarico del ' + c.ric + '%.') + '</div>';
+      (sotto ? 'Almeno una voce è sotto il prezzo proposto.' : 'Ricarico del ' + c.ric + '% sui prodotti; personale, allestimento ed extra sono a costo.') + '</div>';
     if (t.rif) {
       const pp = c.ppMenu;
       const testo = pp < 86 ? 'Il menu è sotto la fascia media che abbiamo trovato nelle Marche (86-111 €).'
@@ -919,8 +919,8 @@
     let html = testata('Impostazioni', '');
     html += '<div class="sezione">Questo telefono</div><div class="gruppo"><div class="seg" style="margin:0" role="group" aria-label="Chi usa questo telefono">' +
       ['m', 'a'].map(x => '<button data-act="profilo" data-p="' + x + '" aria-pressed="' + (D.profilo === x) + '">' + NOME[x] + '</button>').join('') + '</div></div>';
-    html += '<div class="sezione">Preventivi</div><div class="gruppo"><div class="campi"><label class="campo largo"><span>Ricarico predefinito (%)</span><input id="st-ric" type="number" inputmode="decimal" min="0" value="' + esc(D.ricarico) + '"></label></div>' +
-      '<div class="piccolo">Quale prezzo contano gli ingredienti:</div>' +
+    html += '<div class="sezione">Preventivi</div><div class="gruppo"><div class="campi"><label class="campo largo"><span>Ricarico sui prodotti (%)</span><input id="st-ric" type="number" inputmode="decimal" min="0" value="' + esc(D.ricarico) + '"></label></div>' +
+      '<div class="piccolo" style="margin-bottom:8px">Il ricarico si applica solo al costo dei prodotti. Personale, allestimento ed extra si fanno pagare a costo.</div>' + '<div class="piccolo">Quale prezzo contano gli ingredienti:</div>' +
       Object.keys(TIPI).map(k => '<label class="campo"><span>' + TIPI[k].nome + '</span><select data-base="' + k + '">' + BASI.map(b => '<option value="' + b[0] + '"' + (D.basePrezzo[k] === b[0] ? ' selected' : '') + '>' + b[1] + '</option>').join('') + '</select></label>').join('') + '</div>';
     const Z = D.azienda, cz = (k, et, tp) => '<label class="campo largo"><span>' + et + '</span><input data-az="' + k + '" type="' + (tp || 'text') + '" value="' + esc(Z[k] || '') + '"></label>';
     html += '<div class="sezione">Intestazione dei preventivi</div><div class="gruppo"><div class="campi">' + cz('nome', 'Nome del negozio') + cz('indirizzo', 'Indirizzo') + cz('tel', 'Telefono', 'tel') + cz('email', 'Email', 'email') + cz('piva', 'Partita IVA') + cz('pec', 'PEC', 'email') + '</div>' +
@@ -933,7 +933,7 @@
       ? '<p class="piccolo" style="margin:0 0 8px">Questo telefono è collegato: compiti, spunte, piatti, menu e preventivi sono uguali su tutti i telefoni collegati.</p><p class="piccolo" id="syStato" style="margin:0 0 10px">' + esc(syTesto()) + '</p><button class="btn" data-act="sync-ora">Sincronizza ora</button><button class="btn" data-act="sync-scollega">Scollega questo telefono</button>'
       : '<p class="piccolo" style="margin:0 0 8px">Collega questo telefono al negozio, così mamma e Alessia vedono le stesse cose. Si usa la stessa email e la stessa password di Magazzino (' + esc(SYNC_CONF.email) + '). Si scrive una volta sola su ogni telefono; serve internet.</p><label class="campo largo"><span>Password del negozio</span><input id="sy-pw" type="password" autocomplete="current-password"></label><button class="btn primario" data-act="sync-collega">Collega questo telefono</button>') + '</div>';
     html += '<div class="sezione">Copia di sicurezza</div><div class="gruppo"><button class="btn" data-act="backup">Salva backup</button><button class="btn" data-act="ripristina">Carica un backup</button><button class="btn pericolo" data-act="ripristina-compiti">Rimetti i compiti iniziali</button></div>';
-    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.5.1 · i dati restano su questo telefono.</p>';
+    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.6.0 · i dati restano su questo telefono.</p>';
     return html;
   }
 
