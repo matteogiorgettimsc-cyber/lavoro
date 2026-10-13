@@ -190,3 +190,16 @@ dialog::backdrop { background: rgba(8, 16, 28, 0.55); }
 @media (prefers-reduced-motion: no-preference) { .check { transition: background 0.15s; } }
 
 .modifica { background: none; border: 0; padding: 6px 0 0; color: var(--blue); font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; text-decoration: underline; }
+
+.barra { position: sticky; top: 0; z-index: 5; display: flex; gap: 6px; background: var(--navy); color: var(--navy-ink); border-radius: var(--r); padding: 10px 12px; margin: 12px 0; box-shadow: 0 2px 8px rgba(16,36,62,0.25); }
+.barra div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.barra span { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.75; }
+.barra b { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+details.blocco { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); margin-top: 10px; }
+details.blocco > summary { cursor: pointer; list-style: none; padding: 13px 14px; font-weight: 650; display: flex; align-items: center; gap: 10px; }
+details.blocco > summary::-webkit-details-marker { display: none; }
+details.blocco > summary::after { content: '▾'; margin-left: auto; color: var(--ink-faint); transition: transform .15s; }
+details.blocco:not([open]) > summary::after { transform: rotate(-90deg); }
+details.blocco .num { width: 24px; height: 24px; border-radius: 50%; background: var(--blue-soft); color: var(--blue); display: inline-grid; place-items: center; font-size: 0.8rem; font-weight: 700; }
+details.blocco .corpo { padding: 0 14px 14px; }
+.rl-riga { grid-template-columns: 1fr 56px 78px 44px; }

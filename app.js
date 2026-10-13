@@ -369,11 +369,19 @@
     const S = D.servizio.pers;
     return { v: 2, id: uid(), cliente: '', tipo, evento: iso(addDays(new Date(), 30)), n: tipo === 'cat' ? 80 : tipo === 'ces' ? 40 : 25,
       menuId: (D.menu.find(m => m.tipo === tipo) || {}).id || '', ore: tipo === 'cat' ? S.ore : 3, ric: D.ricarico,
-      allest: [], extra: [], extraMano: 0, ppMenu: null, forfait: null, vista: 'diviso',
+      allest: [], extra: [], extraMano: 0, righe: [], iva: '', acc: tipo === 'pra' ? 0 : 30, sede: '', orario: '', validita: 30, ppMenu: null, forfait: null, vista: 'diviso',
       giorni: [1, 2, 3, 4, 5], pasti: { 1: 25, 2: 25, 3: 25, 4: 25, 5: 25, 6: 25 }, settimane: 4, oreCucina: 3, consegna: 0, pp: null,
       stato: 'bozza', creato: Date.now() };
   }
-  function calcolaPrev(p) {
+  function calcolaPrev(p) { return finisciPrev(p, calcolaBase(p)); }
+  function finisciPrev(p, r) {
+    const base = p.tipo === 'pra' ? r.periodo : (p.tipo === 'cat' && p.vista === 'diviso' ? r.totale : r.totUnico);
+    r.imponibile = base; r.ivaPerc = (p.iva === '' || p.iva == null) ? null : +p.iva;
+    r.ivaImp = r.ivaPerc == null ? 0 : base * r.ivaPerc / 100; r.totIva = base + r.ivaImp;
+    r.accPerc = +p.acc || 0; r.acc = r.accPerc ? Math.round(r.totIva * r.accPerc) / 100 : 0;
+    return r;
+  }
+  function calcolaBase(p) {
     const base = D.basePrezzo[p.tipo], m = menuDi(p), mi = costoMenu(m, base), ric = +p.ric || 0, S = D.servizio.pers;
     if (p.tipo === 'pra') {
       const giorni = (p.giorni || []).slice().sort();
@@ -389,13 +397,14 @@
     const pers = staff * (+p.ore || 0) * (+S.tar || 0);
     const allest = D.servizio.allest.filter(a => (p.allest || []).indexOf(a.id) > -1).reduce((s, a) => s + (+a.p || 0), 0) + (+p.allestMano || 0);
     const extra = D.servizio.extra.filter(a => (p.extra || []).indexOf(a.id) > -1).reduce((s, a) => s + (+a.p || 0), 0) + (+p.extraMano || 0);
-    const costoMenuTot = mi.pp * n, costoServ = pers + allest + extra, costo = costoMenuTot + costoServ;
+    const righeTot = (p.righe || []).reduce((s, x) => s + (+x.q || 0) * (+x.pu || 0), 0);
+    const costoMenuTot = mi.pp * n, costoServ = pers + allest + extra, costo = costoMenuTot + costoServ + righeTot;
     const propMenu = p.tipo === 'cat' ? Math.ceil(mi.pp * (1 + ric / 100)) : Math.ceil(mi.pp * (1 + ric / 100) * 10) / 10;
     const propServ = Math.ceil(costoServ / 10) * 10;   // personale, allestimento ed extra: a costo, il ricarico è solo sui prodotti
     const ppMenu = p.ppMenu == null ? propMenu : +p.ppMenu, forfait = p.forfait == null ? propServ : +p.forfait;
-    const ricavoMenu = ppMenu * n, totale = ricavoMenu + forfait;
+    const ricavoMenu = ppMenu * n, totale = ricavoMenu + forfait + righeTot;
     const unico = p.tipo === 'cat' ? Math.ceil(totale / n) : Math.ceil(totale / n * 10) / 10;
-    return { tipo: p.tipo, mi, n, staff, pers, allest, extra, costoMenuTot, costoServ, costo, ric, propMenu, propServ, ppMenu, forfait, ricavoMenu, totale,
+    return { tipo: p.tipo, righeTot, mi, n, staff, pers, allest, extra, costoMenuTot, costoServ, costo, ric, propMenu, propServ, ppMenu, forfait, ricavoMenu, totale,
       unico, totUnico: unico * n, marg: totale - costo, pct: totale ? (totale - costo) / totale * 100 : 0 };
   }
   const riga = (a, b, forte) => '<div class="r' + (forte ? ' forte' : '') + '"><span>' + a + '</span><span>' + b + '</span></div>';
@@ -645,46 +654,56 @@
     const p = S.prev;
     if (!p) return viewPreventivi();
     const t = TIPI[p.tipo], menus = D.menu.filter(m => m.tipo === p.tipo);
+    const blocco = (n, titolo, corpo, aperto) => '<details class="blocco"' + (aperto ? ' open' : '') + '><summary><span class="num">' + n + '</span>' + titolo + '</summary><div class="corpo">' + corpo + '</div></details>';
+    const num = (id, et, val, extra) => '<label class="campo' + ((extra || '').indexOf('largo') > -1 ? ' largo' : '') + '"><span>' + et + '</span><input id="' + id + '" type="number" inputmode="decimal" min="0" value="' + esc(val) + '"' + ((extra || '').replace('largo', '').trim() ? ' ' + extra.replace('largo', '').trim() : '') + '></label>';
+    const testoCampo = (id, et, val, ph, largo) => '<label class="campo' + (largo === false ? '' : ' largo') + '"><span>' + et + '</span><input id="' + id + '" type="text" value="' + esc(val || '') + '" placeholder="' + esc(ph || '') + '" autocomplete="off"></label>';
     let html = indietro('#preventivi', 'Preventivi') + testata(S.prevNuovo ? 'Nuovo preventivo' : 'Preventivo', t.nome);
     html += '<div class="seg" role="group" aria-label="Tipo">' + Object.keys(TIPI).map(k => '<button data-act="tipo" data-tipo="' + k + '" aria-pressed="' + (k === p.tipo) + '">' + esc(TIPI[k].corto) + '</button>').join('') + '</div>';
-    html += '<div class="campi"><label class="campo largo"><span>Cliente</span><input id="pv-cliente" type="text" value="' + esc(p.cliente) + '" autocomplete="off" placeholder="Nome o azienda"></label>';
-    if (p.tipo !== 'pra') {
-      html += '<label class="campo"><span>Numero di ' + esc(t.unita) + '</span><input id="pv-n" type="number" inputmode="numeric" min="1" value="' + esc(p.n) + '"></label>' +
-        '<label class="campo"><span>Data</span><input id="pv-evento" type="date" value="' + esc(p.evento) + '"></label>';
-    }
-    html += '<label class="campo largo"><span>' + (p.tipo === 'ces' ? 'Pacchetto' : 'Menu') + '</span>' + (menus.length ? '<select id="pv-menu">' + menus.map(m => '<option value="' + esc(m.id) + '"' + (m.id === p.menuId ? ' selected' : '') + '>' + esc(m.nome) + '</option>').join('') + '</select>' : '<div class="stato avviso">Non c\'è ancora un menu per questo tipo. <a href="#menu">Crea un menu</a>.</div>') + '</label>';
+    html += '<div class="barra" id="pv-barra" aria-live="polite"></div>';
+    // 1 evento
+    let ev = testoCampo('pv-cliente', 'Cliente', p.cliente, 'Nome o azienda');
+    if (p.tipo !== 'pra') ev += num('pv-n', 'Numero di ' + esc(t.unita), p.n, 'step="1"') + '<label class="campo"><span>Data</span><input id="pv-evento" type="date" value="' + esc(p.evento) + '"></label>' +
+      testoCampo('pv-ora', 'Orario', p.orario, 'Es. 20:00 – 24:00', false) + testoCampo('pv-sede', 'Luogo', p.sede, 'Es. Villa Bianchi, Macerata', false);
+    html += blocco(1, p.tipo === 'pra' ? 'Cliente' : 'Evento', '<div class="campi">' + ev + '</div>', true);
+    // 2 menu e quantità
+    let mn = '<label class="campo largo"><span>' + (p.tipo === 'ces' ? 'Pacchetto' : 'Menu') + '</span>' + (menus.length ? '<select id="pv-menu">' + menus.map(m => '<option value="' + esc(m.id) + '"' + (m.id === p.menuId ? ' selected' : '') + '>' + esc(m.nome) + '</option>').join('') + '</select>' : '<div class="stato avviso">Non c\'è ancora un menu per questo tipo. <a href="#menu">Crea un menu</a>.</div>') + '</label>';
     if (p.tipo === 'pra') {
-      html += '<div class="campo largo"><span>Giorni di consegna</span><div class="scelte">' + TUTTI.map(g => '<label class="scelta"><input type="checkbox" id="pv-g-' + g + '"' + (p.giorni.indexOf(g) > -1 ? ' checked' : '') + '><span>' + GIORNI[g] + '</span></label>').join('') + '</div></div>' +
+      mn += '<div class="campo largo"><span>Giorni di consegna</span><div class="scelte">' + TUTTI.map(g => '<label class="scelta"><input type="checkbox" id="pv-g-' + g + '"' + (p.giorni.indexOf(g) > -1 ? ' checked' : '') + '><span>' + GIORNI[g] + '</span></label>').join('') + '</div></div>' +
         TUTTI.map(g => '<label class="campo" id="pv-pb-' + g + '"><span>Pasti il ' + GIORNI[g] + '</span><input id="pv-pasti-' + g + '" type="number" inputmode="numeric" min="0" value="' + esc(p.pasti[g]) + '"></label>').join('') +
-        '<label class="campo"><span>Per quante settimane</span><input id="pv-sett" type="number" inputmode="numeric" min="1" value="' + esc(p.settimane) + '"></label>' +
-        '<label class="campo"><span>Ore di cucina al giorno</span><input id="pv-oc" type="number" inputmode="decimal" min="0" value="' + esc(p.oreCucina) + '"></label>' +
-        '<label class="campo"><span>Consegna al giorno (€)</span><input id="pv-cons" type="number" inputmode="decimal" min="0" value="' + esc(p.consegna) + '"></label>';
-    } else {
-      html += '<label class="campo"><span>' + (p.tipo === 'cat' ? 'Ore di servizio' : 'Ore di lavoro') + '</span><input id="pv-ore" type="number" inputmode="decimal" min="0" value="' + esc(p.ore) + '"></label>';
-      if (D.servizio.allest.length) html += '<div class="campo largo"><span>Allestimento</span><div class="scelte">' + D.servizio.allest.map(a => '<label class="scelta lungo"><input type="checkbox" id="pv-a-' + esc(a.id) + '"' + (p.allest.indexOf(a.id) > -1 ? ' checked' : '') + '><span>' + esc(a.n) + ' · ' + EUR.format(a.p) + '</span></label>').join('') + '</div></div>';
-      if (D.servizio.extra.length) html += '<div class="campo largo"><span>Extra</span><div class="scelte">' + D.servizio.extra.map(a => '<label class="scelta lungo"><input type="checkbox" id="pv-e-' + esc(a.id) + '"' + (p.extra.indexOf(a.id) > -1 ? ' checked' : '') + '><span>' + esc(a.n) + ' · ' + EUR.format(a.p) + '</span></label>').join('') + '</div></div>';
-      if (!D.servizio.allest.length) html += '<div class="campo largo"><span>Allestimento</span><p class="piccolo" style="margin:0">Nessuna voce salvata. Scrivi qui sotto il costo di questo evento, oppure salva le voci che ripeti spesso in <a href="#servizio">Prepara → Servizio</a>.</p></div>';
-      html += '<label class="campo"><span>Costo allestimento (€)</span><input id="pv-am" type="number" inputmode="decimal" min="0" value="' + esc(p.allestMano || 0) + '"></label>';
-      html += '<label class="campo"><span>Altri extra (€)</span><input id="pv-xm" type="number" inputmode="decimal" min="0" value="' + esc(p.extraMano) + '"></label>';
+        num('pv-sett', 'Per quante settimane', p.settimane, 'step="1"');
     }
-    html += '<label class="campo"><span>Ricarico sui prodotti (%)</span><input id="pv-ric" type="number" inputmode="decimal" min="0" value="' + esc(p.ric) + '"></label>';
-    if (p.tipo === 'pra') html += '<label class="campo largo"><span>Prezzo a pasto (€)</span><input id="pv-pp" type="number" inputmode="decimal" min="0" step="0.1"></label>';
+    html += blocco(2, p.tipo === 'pra' ? 'Pasti e giorni' : 'Menu', '<div class="campi">' + mn + '</div>', true);
+    // 3 servizio e costi
+    let sv = '';
+    if (p.tipo === 'pra') sv += num('pv-oc', 'Ore di cucina al giorno', p.oreCucina) + num('pv-cons', 'Consegna al giorno (€)', p.consegna);
     else {
-      html += '<label class="campo"><span>' + (p.tipo === 'cat' ? 'Menu a persona (€)' : 'Prezzo a pezzo (€)') + '</span><input id="pv-ppm" type="number" inputmode="decimal" min="0" step="0.1"></label>' +
-        '<label class="campo"><span>Servizio e allestimento (€)</span><input id="pv-forf" type="number" inputmode="decimal" min="0" step="10"></label>';
-      if (p.tipo === 'cat') html += '<label class="campo largo"><span>Come lo vede il cliente</span><select id="pv-vista"><option value="diviso"' + (p.vista === 'diviso' ? ' selected' : '') + '>Due voci: menu e servizio</option><option value="unico"' + (p.vista === 'unico' ? ' selected' : '') + '>Un solo prezzo a persona</option></select></label>';
+      sv += num('pv-ore', p.tipo === 'cat' ? 'Ore di servizio' : 'Ore di lavoro', p.ore);
+      if (D.servizio.allest.length) sv += '<div class="campo largo"><span>Allestimento</span><div class="scelte">' + D.servizio.allest.map(a => '<label class="scelta lungo"><input type="checkbox" id="pv-a-' + esc(a.id) + '"' + (p.allest.indexOf(a.id) > -1 ? ' checked' : '') + '><span>' + esc(a.n) + ' · ' + EUR.format(a.p) + '</span></label>').join('') + '</div></div>';
+      if (D.servizio.extra.length) sv += '<div class="campo largo"><span>Extra</span><div class="scelte">' + D.servizio.extra.map(a => '<label class="scelta lungo"><input type="checkbox" id="pv-e-' + esc(a.id) + '"' + (p.extra.indexOf(a.id) > -1 ? ' checked' : '') + '><span>' + esc(a.n) + ' · ' + EUR.format(a.p) + '</span></label>').join('') + '</div></div>';
+      sv += num('pv-am', 'Costo allestimento (€)', p.allestMano || 0) + num('pv-xm', 'Altri extra (€)', p.extraMano);
+      if (!D.servizio.allest.length) sv += '<p class="piccolo largo" style="grid-column:1/-1;margin:0">Le voci che ripeti spesso si salvano in <a href="#servizio">Prepara → Servizio</a>.</p>';
+      sv += '<div class="campo largo"><span>Righe in più per il cliente (nome e importo)</span><div id="pv-righe">' + (p.righe || []).map((x, i) => '<div class="ing-riga rl-riga"><input class="rl-n" type="text" value="' + esc(x.n) + '" placeholder="Es. Noleggio sedie" aria-label="Nome della riga"><input class="rl-q" type="text" inputmode="decimal" value="' + esc(x.q) + '" placeholder="Q.tà" aria-label="Quantità"><input class="rl-pu" type="text" inputmode="decimal" value="' + esc(x.pu) + '" placeholder="€ cad." aria-label="Prezzo unitario"><button type="button" data-act="riga-libera-togli" data-i="' + i + '" aria-label="Togli riga">✕</button></div>').join('') + '</div><button class="btn" type="button" data-act="riga-libera-aggiungi">+ Aggiungi una riga</button><div class="piccolo">Si vedono come righe a parte nel documento e si pagano a costo.</div></div>';
     }
-    html += '</div><div class="sezione" style="margin-top:14px">Nomi delle voci per il cliente</div><div class="campi">' +
-      '<label class="campo largo"><span>Titolo del documento</span><input id="pv-titolo" type="text" value="' + esc(p.titolo || '') + '" placeholder="Preventivo" autocomplete="off"></label>' +
-      '<label class="campo largo"><span>Nome della voce ' + (p.tipo === 'pra' ? 'dei pasti' : 'del menu') + '</span><input id="pv-etm" type="text" value="' + esc(p.etMenu || '') + '" placeholder="Come il nome del menu" autocomplete="off"></label>' +
-      (p.tipo === 'pra' ? '' : '<label class="campo largo"><span>Nome della voce del servizio</span><input id="pv-ets" type="text" value="' + esc(p.etServ || '') + '" placeholder="Servizio e allestimento" autocomplete="off"></label>') +
-      '<label class="campo largo"><span>Nota per il cliente (facoltativa)</span><input id="pv-nota" type="text" value="' + esc(p.note || '') + '" placeholder="Es. Include cena servita e brindisi" autocomplete="off"></label></div>' +
-      '<div class="azioni"><button class="btn" data-act="usa-proposto">Usa i prezzi proposti</button></div>';
+    html += blocco(3, p.tipo === 'pra' ? 'Cucina e consegna' : 'Personale e allestimento', '<div class="campi">' + sv + '</div>', p.tipo !== 'pra');
+    // 4 prezzo
+    let pz = num('pv-ric', 'Ricarico sui prodotti (%)', p.ric, 'largo');
+    if (p.tipo === 'pra') pz += '<label class="campo largo"><span>Prezzo a pasto (€)</span><input id="pv-pp" type="number" inputmode="decimal" min="0" step="0.1"></label>';
+    else {
+      pz += '<label class="campo"><span>' + (p.tipo === 'cat' ? 'Menu a persona (€)' : 'Prezzo a pezzo (€)') + '</span><input id="pv-ppm" type="number" inputmode="decimal" min="0" step="0.1"></label>' +
+        '<label class="campo"><span>Servizio e allestimento (€)</span><input id="pv-forf" type="number" inputmode="decimal" min="0" step="10"></label>';
+      if (p.tipo === 'cat') pz += '<label class="campo largo"><span>Come lo vede il cliente</span><select id="pv-vista"><option value="diviso"' + (p.vista === 'diviso' ? ' selected' : '') + '>Due voci: menu e servizio</option><option value="unico"' + (p.vista === 'unico' ? ' selected' : '') + '>Un solo prezzo a persona</option></select></label>';
+    }
+    pz += '<label class="campo"><span>IVA</span><select id="pv-iva">' + [['', 'Da definire'], ['0', 'Esclusa (0%)'], ['4', '4%'], ['10', '10%'], ['22', '22%']].map(o => '<option value="' + o[0] + '"' + (String(p.iva == null ? '' : p.iva) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></label>' +
+      num('pv-acc', 'Acconto (%)', p.acc || 0) + (p.tipo === 'pra' ? '' : num('pv-val', 'Valido per (giorni)', p.validita || 30));
+    html += blocco(4, 'Prezzo', '<div class="campi">' + pz + '</div><div class="azioni"><button class="btn" data-act="usa-proposto">Usa i prezzi proposti</button></div>', true);
+    // 5 nomi e note
+    html += blocco(5, 'Nomi e note per il cliente', '<div class="campi">' + testoCampo('pv-titolo', 'Titolo del documento', p.titolo, 'Preventivo') + testoCampo('pv-etm', 'Nome della voce ' + (p.tipo === 'pra' ? 'dei pasti' : 'del menu'), p.etMenu, 'Come il nome del menu') +
+      (p.tipo === 'pra' ? '' : testoCampo('pv-ets', 'Nome della voce del servizio', p.etServ, 'Servizio e allestimento')) + testoCampo('pv-nota', 'Nota per il cliente (facoltativa)', p.note, 'Es. Include cena servita e brindisi') + '</div>', false);
     html += '<div class="pannello privato"><div class="etichetta">Solo per te · non va al cliente</div><div id="pv-costi"></div><div id="pv-margine"></div><div id="pv-conf"></div></div>';
     html += '<div class="pannello"><div class="etichetta">Documento per il cliente</div><div id="pv-doc"></div></div>';
+    html += '<div class="azioni"><button class="btn primario" data-act="salva-prev">Salva</button><button class="btn scuro" data-act="pdf-prev">Crea PDF</button></div><div class="azioni"><button class="btn" data-act="condividi-prev">Condividi testo</button></div>';
     html += '<div class="pannello"><div class="etichetta">Ingredienti da ordinare</div><div id="pv-lista"></div></div>';
     if (p.tipo !== 'pra') html += '<div class="pannello"><div class="etichetta">Compiti dalla data</div><ul class="piano" id="pv-piano"></ul></div>';
-    html += '<div class="azioni"><button class="btn primario" data-act="salva-prev">Salva</button><button class="btn scuro" data-act="pdf-prev">Crea PDF</button></div><div class="azioni"><button class="btn" data-act="condividi-prev">Condividi testo</button></div>';
     html += '<div class="azioni">' + (p.stato === 'accettato' ? '<span class="piccolo">Accettato' + (p.taskCreati ? ' · compiti creati' : '') + '</span>' : '<button class="btn" data-act="accetta-prev">' + (p.tipo === 'pra' ? 'Segna accettato' : 'Accettato: crea i compiti') + '</button>') +
       (!S.prevNuovo ? '<button class="btn pericolo" data-act="elimina-prev">Elimina</button>' : '') + '</div>';
     return html;
@@ -695,12 +714,14 @@
     p.cliente = $('#pv-cliente').value; p.ric = numero('pv-ric');
     p.titolo = $('#pv-titolo').value; p.etMenu = $('#pv-etm').value; p.note = $('#pv-nota').value; const ets = $('#pv-ets'); if (ets) p.etServ = ets.value;
     const m = $('#pv-menu'); if (m) p.menuId = m.value;
+    p.iva = $('#pv-iva').value; p.acc = numero('pv-acc');
     if (p.tipo === 'pra') {
       p.giorni = TUTTI.filter(g => $('#pv-g-' + g).checked);
       TUTTI.forEach(g => { p.pasti[g] = numero('pv-pasti-' + g); });
       p.settimane = numero('pv-sett') || 1; p.oreCucina = numero('pv-oc'); p.consegna = numero('pv-cons');
     } else {
-      p.n = numero('pv-n') || 1; p.evento = $('#pv-evento').value; p.ore = numero('pv-ore'); p.extraMano = numero('pv-xm'); p.allestMano = numero('pv-am');
+      p.n = numero('pv-n') || 1; p.evento = $('#pv-evento').value; p.orario = $('#pv-ora').value; p.sede = $('#pv-sede').value; p.validita = numero('pv-val') || 30;
+      p.righe = [...document.querySelectorAll('#pv-righe .rl-riga')].map(r => ({ n: r.querySelector('.rl-n').value, q: num(r.querySelector('.rl-q').value) || 0, pu: num(r.querySelector('.rl-pu').value) || 0 })); p.ore = numero('pv-ore'); p.extraMano = numero('pv-xm'); p.allestMano = numero('pv-am');
       p.allest = D.servizio.allest.filter(a => { const e = document.getElementById('pv-a-' + a.id); return e && e.checked; }).map(a => a.id);
       p.extra = D.servizio.extra.filter(a => { const e = document.getElementById('pv-e-' + a.id); return e && e.checked; }).map(a => a.id);
       const v = $('#pv-vista'); if (v) p.vista = v.value;
@@ -710,6 +731,8 @@
     const p = S.prev; if (!p || !$('#pv-costi')) return;
     const t = TIPI[p.tipo], c = calcolaPrev(p), m = menuDi(p);
     const fuoco = id => document.activeElement && document.activeElement.id === id;
+    const tot = c.ivaPerc == null ? c.imponibile : c.totIva, kp = (et, v) => '<div><span>' + et + '</span><b>' + v + '</b></div>';
+    $('#pv-barra').innerHTML = (p.tipo === 'pra' ? kp('A pasto', EUR.format(c.pp)) + kp('Per ' + (+p.settimane || 1) + ' sett.', EUR.format(tot)) : kp('Totale', EUR.format(tot)) + kp(p.tipo === 'cat' ? 'A persona' : 'A pezzo', EUR.format(tot / (c.n || 1)))) + (D.profilo === 'm' ? kp('Margine', EUR.format(c.marg)) : '');
     if (p.tipo === 'pra') {
       TUTTI.forEach(g => { $('#pv-pb-' + g).hidden = p.giorni.indexOf(g) < 0; });
       if (!fuoco('pv-pp')) $('#pv-pp').value = String(p.pp == null ? c.prop : p.pp);
@@ -760,33 +783,50 @@
       });
     }
   }
+  function righeDoc(p, c, m) {
+    const t = TIPI[p.tipo], E = etich(p, m), R = [], eur = EUR.format.bind(EUR);
+    const liberi = (p.righe || []).filter(x => (x.n || '').trim() && (+x.q || 0) * (+x.pu || 0) > 0);
+    if (p.tipo === 'pra') {
+      R.push({ a: E.menu + ' · ' + c.pasti + ' pasti a settimana × ' + eur(c.pp), b: eur(c.ricavo) });
+      R.push({ a: 'Giorni di consegna: ' + c.giorni.map(g => GIORNI[g]).join(', '), k: 'n' });
+      R.push({ a: 'Per ' + (+p.settimane || 1) + ' settimane', b: eur(c.periodo), k: c.ivaPerc == null ? 't' : 's' });
+    } else if (p.tipo === 'cat' && p.vista === 'diviso') {
+      R.push({ a: E.menu + ' · ' + c.n + ' ' + t.unita + ' × ' + eur(c.ppMenu), b: eur(c.ricavoMenu) });
+      R.push({ a: E.serv, b: eur(c.forfait) });
+      liberi.forEach(x => R.push({ a: x.n.trim() + ((+x.q || 0) !== 1 ? ' · ' + x.q + ' × ' + eur(+x.pu) : ''), b: eur((+x.q || 0) * (+x.pu || 0)) }));
+      R.push({ a: c.ivaPerc == null ? 'Totale' : 'Imponibile', b: eur(c.imponibile), k: c.ivaPerc == null ? 't' : 's' });
+    } else {
+      R.push({ a: E.menu + ' · ' + c.n + ' ' + t.unita + ' × ' + eur(c.unico), b: eur(c.totUnico) });
+      R.push({ a: 'Servizio e allestimento inclusi nel prezzo', k: 'n' });
+      R.push({ a: c.ivaPerc == null ? 'Totale' : 'Imponibile', b: eur(c.imponibile), k: c.ivaPerc == null ? 't' : 's' });
+    }
+    if (c.ivaPerc != null) { R.push({ a: 'IVA ' + c.ivaPerc + '%', b: eur(c.ivaImp) }); R.push({ a: 'Totale', b: eur(c.totIva), k: 't' }); }
+    else R.push({ a: 'IVA da definire.', k: 'n' });
+    if (p.tipo === 'pra') R.push({ a: 'Circa ' + eur(c.mese * (1 + (c.ivaPerc || 0) / 100)) + ' al mese.', k: 'n' });
+    if (c.acc > 0) R.push({ a: 'Acconto alla conferma (' + c.accPerc + '%)', b: eur(c.acc), k: 's' });
+    return R;
+  }
+  function intestDoc(p) {
+    const r = [];
+    if (p.tipo !== 'pra' && p.evento) r.push(['Data', dataLunga(p.evento) + (p.orario ? ' · ' + p.orario : '')]);
+    if (p.sede) r.push(['Luogo', p.sede]);
+    return r;
+  }
   function etich(p, m) { return { titolo: (p.titolo || '').trim() || 'Preventivo', menu: (p.etMenu || '').trim() || (m ? m.nome : 'Menu'), serv: (p.etServ || '').trim() || 'Servizio e allestimento', note: (p.note || '').trim() }; }
   function docCliente(p, c, m) {
-    const t = TIPI[p.tipo], E = etich(p, m), nome = esc(E.menu);
+    const t = TIPI[p.tipo], E = etich(p, m);
     let h = '<strong>' + esc(E.titolo) + ' · ' + esc(t.nome) + '</strong>' + (p.cliente ? '<div>' + esc(p.cliente) + '</div>' : '');
-    if (p.tipo === 'pra') {
-      h += riga(nome + ' · ' + c.pasti + ' pasti a settimana × ' + EUR.format(c.pp), EUR.format(c.ricavo)) + '<div class="piccolo">Giorni: ' + c.giorni.map(g => GIORNI[g]).join(', ') + '</div>' +
-        riga('Per ' + (+p.settimane || 1) + ' settimane', EUR.format(c.periodo), true) + '<div class="piccolo">Circa ' + EUR.format(c.mese) + ' al mese. IVA da definire.</div>';
-    } else if (p.tipo === 'cat' && p.vista === 'diviso') {
-      h += riga(nome + ' · ' + c.n + ' ' + t.unita + ' × ' + EUR.format(c.ppMenu), EUR.format(c.ricavoMenu)) + riga(esc(E.serv), EUR.format(c.forfait)) + riga('Totale', EUR.format(c.totale), true) + '<div class="piccolo">IVA da definire.</div>';
-    } else {
-      h += riga(nome + ' · ' + c.n + ' ' + t.unita + ' × ' + EUR.format(c.unico), EUR.format(c.totUnico)) + '<div class="piccolo">Servizio e allestimento inclusi nel prezzo.</div>' + riga('Totale', EUR.format(c.totUnico), true) + '<div class="piccolo">IVA da definire.</div>';
-    }
+    intestDoc(p).forEach(x => { h += '<div class="piccolo">' + esc(x[0]) + ': ' + esc(x[1]) + '</div>'; });
+    righeDoc(p, c, m).forEach(x => { h += x.k === 'n' ? '<div class="piccolo">' + esc(x.a) + '</div>' : riga(esc(x.a), esc(x.b), x.k === 't'); });
     if (E.note) h += '<div class="piccolo" style="margin-top:8px">' + esc(E.note) + '</div>';
     return h;
   }
   function testoPrev(p) {
-    const c = calcolaPrev(p), t = TIPI[p.tipo], m = menuDi(p), E = etich(p, m), nome = E.menu, r = [E.titolo + ' – ' + t.nome];
+    const c = calcolaPrev(p), t = TIPI[p.tipo], m = menuDi(p), E = etich(p, m), r = [E.titolo + ' – ' + t.nome];
     if (p.cliente) r.push(p.cliente);
-    if (p.tipo !== 'pra' && p.evento) r.push('Data: ' + dataLunga(p.evento));
+    intestDoc(p).forEach(x => r.push(x[0] + ': ' + x[1]));
     r.push('');
-    if (p.tipo === 'pra') {
-      r.push(nome + ': ' + c.pasti + ' pasti a settimana × ' + EUR.format(c.pp) + ' = ' + EUR.format(c.ricavo), 'Giorni: ' + c.giorni.map(g => GIORNI[g]).join(', '), 'Per ' + (+p.settimane || 1) + ' settimane: ' + EUR.format(c.periodo) + ' (IVA da definire)');
-    } else if (p.tipo === 'cat' && p.vista === 'diviso') {
-      r.push(nome + ': ' + c.n + ' ' + t.unita + ' × ' + EUR.format(c.ppMenu) + ' = ' + EUR.format(c.ricavoMenu), E.serv + ': ' + EUR.format(c.forfait), 'Totale: ' + EUR.format(c.totale) + ' (IVA da definire)');
-    } else {
-      r.push(nome + ': ' + c.n + ' ' + t.unita + ' × ' + EUR.format(c.unico) + ' = ' + EUR.format(c.totUnico), 'Servizio e allestimento inclusi', 'Totale: ' + EUR.format(c.totUnico) + ' (IVA da definire)');
-    }
+    righeDoc(p, c, m).forEach(x => r.push(x.b ? x.a + ': ' + x.b : x.a));
     if (E.note) r.push('', E.note);
     r.push('', 'La Spesa Sfusa');
     return r.join('\n');
@@ -839,22 +879,8 @@
     });
   }
   function righePdf(p) {
-    const c = calcolaPrev(p), t = TIPI[p.tipo], m = menuDi(p), nome = etich(p, m).menu, R = [];
-    if (p.tipo === 'pra') {
-      R.push([nome + ' · ' + c.pasti + ' pasti a settimana × ' + EUR.format(c.pp), EUR.format(c.ricavo)]);
-      R.push(['Giorni di consegna: ' + c.giorni.map(g => GIORNI[g]).join(', '), '', 'nota']);
-      R.push(['Totale per ' + (+p.settimane || 1) + ' settimane', EUR.format(c.periodo), 'tot']);
-      R.push(['Circa ' + EUR.format(c.mese) + ' al mese', '', 'nota']);
-    } else if (p.tipo === 'cat' && p.vista === 'diviso') {
-      R.push([nome + ' · ' + c.n + ' ' + t.unita + ' × ' + EUR.format(c.ppMenu), EUR.format(c.ricavoMenu)]);
-      R.push([etich(p, m).serv, EUR.format(c.forfait)]);
-      R.push(['Totale', EUR.format(c.totale), 'tot']);
-    } else {
-      R.push([nome + ' · ' + c.n + ' ' + t.unita + ' × ' + EUR.format(c.unico), EUR.format(c.totUnico)]);
-      R.push(['Servizio e allestimento inclusi nel prezzo', '', 'nota']);
-      R.push(['Totale', EUR.format(c.totUnico), 'tot']);
-    }
-    return R;
+    const c = calcolaPrev(p), m = menuDi(p);
+    return righeDoc(p, c, m).map(x => [x.a, x.b || '', x.k === 't' ? 'tot' : x.k === 'n' ? 'nota' : '']);
   }
   const LOGO_PREDEF = 'logo.jpg';
   async function creaPdf(p) {
@@ -877,7 +903,7 @@
     testo(M, y, t.nome, 11, false, [90, 100, 115]); y -= 30;
     const campo = (et, val) => { if (!val) return; testo(M, y, et, 8.5, true, [90, 100, 115]); testo(M + 80, y, val, 11); y -= 18; };
     campo('CLIENTE', p.cliente);
-    if (p.tipo !== 'pra' && p.evento) campo('DATA', dataLunga(p.evento));
+    intestDoc(p).forEach(x => campo(x[0].toUpperCase(), x[1]));
     const m = menuDi(p);
     y -= 10;
     // tabella
@@ -896,7 +922,7 @@
       piatti.forEach(d => { if (y < 110) return; testo(M + 4, y, '•  ' + d.nome, 10.5); y -= 15; });
     }
     // note
-    const note = [p.tipo === 'pra' ? 'Prezzi per pasto consegnato. IVA da definire.' : 'IVA da definire.', 'Preventivo valido 30 giorni dalla data di emissione.'];
+    const note = [(p.tipo === 'pra' ? 'Prezzi per pasto consegnato. ' : '') + 'Preventivo valido ' + (+p.validita || 30) + ' giorni dalla data di emissione.'];
     if (etich(p, null).note) note.unshift(etich(p, null).note);
     let yn = 92; linea(yn + 14);
     note.forEach(n => spezza(n, 9, W - 2 * M, false).forEach(rg => { testo(M, yn, rg, 9, false, [90, 100, 115]); yn -= 12; }));
@@ -942,7 +968,7 @@
       ? '<p class="piccolo" style="margin:0 0 8px">Questo telefono è collegato: compiti, spunte, piatti, menu e preventivi sono uguali su tutti i telefoni collegati.</p><p class="piccolo" id="syStato" style="margin:0 0 10px">' + esc(syTesto()) + '</p><button class="btn" data-act="sync-ora">Sincronizza ora</button><button class="btn" data-act="sync-scollega">Scollega questo telefono</button>'
       : '<p class="piccolo" style="margin:0 0 8px">Collega questo telefono al negozio, così mamma e Alessia vedono le stesse cose. Si usa la stessa email e la stessa password di Magazzino (' + esc(SYNC_CONF.email) + '). Si scrive una volta sola su ogni telefono; serve internet.</p><label class="campo largo"><span>Password del negozio</span><input id="sy-pw" type="password" autocomplete="current-password"></label><button class="btn primario" data-act="sync-collega">Collega questo telefono</button>') + '</div>';
     html += '<div class="sezione">Copia di sicurezza</div><div class="gruppo"><button class="btn" data-act="backup">Salva backup</button><button class="btn" data-act="ripristina">Carica un backup</button><button class="btn pericolo" data-act="ripristina-compiti">Rimetti i compiti iniziali</button></div>';
-    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.7.0 · i dati restano su questo telefono.</p>';
+    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.8.0 · i dati restano su questo telefono.</p>';
     return html;
   }
 
@@ -1037,6 +1063,8 @@
     filtro(b) { S.chi = b.dataset.f; render(); },
     'nuovo-compito'() { editorCompito(null); },
     'nuovo-oggi'() { editorCompito(null, true); },
+    'riga-libera-aggiungi'() { leggiModuloPrev(); S.prev.righe = (S.prev.righe || []).concat([{ n: '', q: 1, pu: 0 }]); render(); },
+    'riga-libera-togli'(b) { leggiModuloPrev(); S.prev.righe.splice(+b.dataset.i, 1); render(); },
     async 'sync-collega'() {
       const pw = ($('#sy-pw') || {}).value || ''; if (!pw) { toast('Scrivi la password'); return; }
       try { SY.auth = await syAccedi(pw); SY.da = null; sySalva(); toast('Telefono collegato'); syAvvia(); render(); } catch (e) { toast(e.message); }
@@ -1069,7 +1097,7 @@
       if (!S.prev.menuId) { toast('Scegli un menu prima di salvare'); return; }
       salvaPrev(); toast('Preventivo salvato'); location.hash = '#prev/' + S.prev.id; render();
     },
-    'pdf-prev'() { leggiModuloPrev(); if (!S.prev.menuId) { toast('Scegli un menu prima'); return; } pdfPrev(S.prev).catch(() => toast('Non riesco a creare il PDF')); },
+    'pdf-prev'() { leggiModuloPrev(); if (!S.prev.menuId) { toast('Scegli un menu prima'); return; } pdfPrev(S.prev).catch(e => { console.error(e); toast('Non riesco a creare il PDF') }); },
     'logo'() { fileMode = 'logo'; $('#fileInput').click(); },
     'logo-togli'() { D.azienda.logo = ''; salva(); render(); },
     'condividi-prev'() {
