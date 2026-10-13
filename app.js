@@ -387,7 +387,7 @@
     const n = Math.max(1, Math.round(+p.n || 1));
     const staff = p.tipo === 'cat' ? Math.max(+S.min || 1, Math.ceil(n / (+S.ogni || 25))) : 1;
     const pers = staff * (+p.ore || 0) * (+S.tar || 0);
-    const allest = D.servizio.allest.filter(a => (p.allest || []).indexOf(a.id) > -1).reduce((s, a) => s + (+a.p || 0), 0);
+    const allest = D.servizio.allest.filter(a => (p.allest || []).indexOf(a.id) > -1).reduce((s, a) => s + (+a.p || 0), 0) + (+p.allestMano || 0);
     const extra = D.servizio.extra.filter(a => (p.extra || []).indexOf(a.id) > -1).reduce((s, a) => s + (+a.p || 0), 0) + (+p.extraMano || 0);
     const costoMenuTot = mi.pp * n, costoServ = pers + allest + extra, costo = costoMenuTot + costoServ;
     const propMenu = p.tipo === 'cat' ? Math.ceil(mi.pp * (1 + ric / 100)) : Math.ceil(mi.pp * (1 + ric / 100) * 10) / 10;
@@ -620,8 +620,8 @@
       '<label class="campo"><span>Ore di servizio</span><input id="sv-ore" type="number" inputmode="decimal" min="0" value="' + esc(P.ore) + '"></label>' +
       '<label class="campo"><span>Costo orario (€)</span><input id="sv-tar" type="number" inputmode="decimal" min="0" value="' + esc(P.tar) + '"></label></div>' +
       '<p class="piccolo" style="margin:0">Il personale si calcola da solo dal numero di ospiti.</p></div>';
-    html += '<div class="sezione">Allestimento: cosa costa</div><div class="gruppo">' + righeVoci('allest', 'Aggiungi una voce') + '</div>';
-    html += '<div class="sezione">Extra: cosa costa</div><div class="gruppo">' + righeVoci('extra', 'Aggiungi una voce') + '</div>';
+    html += '<div class="sezione">Allestimento: cosa costa</div><div class="gruppo"><p class="piccolo" style="margin:0 0 8px">Scrivi le cose che usi spesso con il loro costo, ad esempio «Tavoli e tovaglie» 150 €. Poi, in ogni preventivo, spunti quelle che servono.</p>' + righeVoci('allest', 'Aggiungi una voce') + '</div>';
+    html += '<div class="sezione">Extra: cosa costa</div><div class="gruppo"><p class="piccolo" style="margin:0 0 8px">Come sopra, per trasporto, noleggi e simili.</p>' + righeVoci('extra', 'Aggiungi una voce') + '</div>';
     return html;
   }
 
@@ -663,6 +663,8 @@
       html += '<label class="campo"><span>' + (p.tipo === 'cat' ? 'Ore di servizio' : 'Ore di lavoro') + '</span><input id="pv-ore" type="number" inputmode="decimal" min="0" value="' + esc(p.ore) + '"></label>';
       if (D.servizio.allest.length) html += '<div class="campo largo"><span>Allestimento</span><div class="scelte">' + D.servizio.allest.map(a => '<label class="scelta lungo"><input type="checkbox" id="pv-a-' + esc(a.id) + '"' + (p.allest.indexOf(a.id) > -1 ? ' checked' : '') + '><span>' + esc(a.n) + ' · ' + EUR.format(a.p) + '</span></label>').join('') + '</div></div>';
       if (D.servizio.extra.length) html += '<div class="campo largo"><span>Extra</span><div class="scelte">' + D.servizio.extra.map(a => '<label class="scelta lungo"><input type="checkbox" id="pv-e-' + esc(a.id) + '"' + (p.extra.indexOf(a.id) > -1 ? ' checked' : '') + '><span>' + esc(a.n) + ' · ' + EUR.format(a.p) + '</span></label>').join('') + '</div></div>';
+      if (!D.servizio.allest.length) html += '<div class="campo largo"><span>Allestimento</span><p class="piccolo" style="margin:0">Nessuna voce salvata. Scrivi qui sotto il costo di questo evento, oppure salva le voci che ripeti spesso in <a href="#servizio">Prepara → Servizio</a>.</p></div>';
+      html += '<label class="campo"><span>Costo allestimento (€)</span><input id="pv-am" type="number" inputmode="decimal" min="0" value="' + esc(p.allestMano || 0) + '"></label>';
       html += '<label class="campo"><span>Altri extra (€)</span><input id="pv-xm" type="number" inputmode="decimal" min="0" value="' + esc(p.extraMano) + '"></label>';
     }
     html += '<label class="campo"><span>Ricarico (%)</span><input id="pv-ric" type="number" inputmode="decimal" min="0" value="' + esc(p.ric) + '"></label>';
@@ -692,7 +694,7 @@
       TUTTI.forEach(g => { p.pasti[g] = numero('pv-pasti-' + g); });
       p.settimane = numero('pv-sett') || 1; p.oreCucina = numero('pv-oc'); p.consegna = numero('pv-cons');
     } else {
-      p.n = numero('pv-n') || 1; p.evento = $('#pv-evento').value; p.ore = numero('pv-ore'); p.extraMano = numero('pv-xm');
+      p.n = numero('pv-n') || 1; p.evento = $('#pv-evento').value; p.ore = numero('pv-ore'); p.extraMano = numero('pv-xm'); p.allestMano = numero('pv-am');
       p.allest = D.servizio.allest.filter(a => { const e = document.getElementById('pv-a-' + a.id); return e && e.checked; }).map(a => a.id);
       p.extra = D.servizio.extra.filter(a => { const e = document.getElementById('pv-e-' + a.id); return e && e.checked; }).map(a => a.id);
       const v = $('#pv-vista'); if (v) p.vista = v.value;
@@ -931,7 +933,7 @@
       ? '<p class="piccolo" style="margin:0 0 8px">Questo telefono è collegato: compiti, spunte, piatti, menu e preventivi sono uguali su tutti i telefoni collegati.</p><p class="piccolo" id="syStato" style="margin:0 0 10px">' + esc(syTesto()) + '</p><button class="btn" data-act="sync-ora">Sincronizza ora</button><button class="btn" data-act="sync-scollega">Scollega questo telefono</button>'
       : '<p class="piccolo" style="margin:0 0 8px">Collega questo telefono al negozio, così mamma e Alessia vedono le stesse cose. Si usa la stessa email e la stessa password di Magazzino (' + esc(SYNC_CONF.email) + '). Si scrive una volta sola su ogni telefono; serve internet.</p><label class="campo largo"><span>Password del negozio</span><input id="sy-pw" type="password" autocomplete="current-password"></label><button class="btn primario" data-act="sync-collega">Collega questo telefono</button>') + '</div>';
     html += '<div class="sezione">Copia di sicurezza</div><div class="gruppo"><button class="btn" data-act="backup">Salva backup</button><button class="btn" data-act="ripristina">Carica un backup</button><button class="btn pericolo" data-act="ripristina-compiti">Rimetti i compiti iniziali</button></div>';
-    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.5.0 · i dati restano su questo telefono.</p>';
+    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.5.1 · i dati restano su questo telefono.</p>';
     return html;
   }
 
