@@ -674,7 +674,12 @@
         '<label class="campo"><span>Servizio e allestimento (€)</span><input id="pv-forf" type="number" inputmode="decimal" min="0" step="10"></label>';
       if (p.tipo === 'cat') html += '<label class="campo largo"><span>Come lo vede il cliente</span><select id="pv-vista"><option value="diviso"' + (p.vista === 'diviso' ? ' selected' : '') + '>Due voci: menu e servizio</option><option value="unico"' + (p.vista === 'unico' ? ' selected' : '') + '>Un solo prezzo a persona</option></select></label>';
     }
-    html += '</div><div class="azioni"><button class="btn" data-act="usa-proposto">Usa i prezzi proposti</button></div>';
+    html += '</div><div class="sezione" style="margin-top:14px">Nomi delle voci per il cliente</div><div class="campi">' +
+      '<label class="campo largo"><span>Titolo del documento</span><input id="pv-titolo" type="text" value="' + esc(p.titolo || '') + '" placeholder="Preventivo" autocomplete="off"></label>' +
+      '<label class="campo largo"><span>Nome della voce ' + (p.tipo === 'pra' ? 'dei pasti' : 'del menu') + '</span><input id="pv-etm" type="text" value="' + esc(p.etMenu || '') + '" placeholder="Come il nome del menu" autocomplete="off"></label>' +
+      (p.tipo === 'pra' ? '' : '<label class="campo largo"><span>Nome della voce del servizio</span><input id="pv-ets" type="text" value="' + esc(p.etServ || '') + '" placeholder="Servizio e allestimento" autocomplete="off"></label>') +
+      '<label class="campo largo"><span>Nota per il cliente (facoltativa)</span><input id="pv-nota" type="text" value="' + esc(p.note || '') + '" placeholder="Es. Include cena servita e brindisi" autocomplete="off"></label></div>' +
+      '<div class="azioni"><button class="btn" data-act="usa-proposto">Usa i prezzi proposti</button></div>';
     html += '<div class="pannello privato"><div class="etichetta">Solo per te · non va al cliente</div><div id="pv-costi"></div><div id="pv-margine"></div><div id="pv-conf"></div></div>';
     html += '<div class="pannello"><div class="etichetta">Documento per il cliente</div><div id="pv-doc"></div></div>';
     html += '<div class="pannello"><div class="etichetta">Ingredienti da ordinare</div><div id="pv-lista"></div></div>';
@@ -688,6 +693,7 @@
   function leggiModuloPrev() {
     const p = S.prev; if (!p || !$('#pv-cliente')) return;
     p.cliente = $('#pv-cliente').value; p.ric = numero('pv-ric');
+    p.titolo = $('#pv-titolo').value; p.etMenu = $('#pv-etm').value; p.note = $('#pv-nota').value; const ets = $('#pv-ets'); if (ets) p.etServ = ets.value;
     const m = $('#pv-menu'); if (m) p.menuId = m.value;
     if (p.tipo === 'pra') {
       p.giorni = TUTTI.filter(g => $('#pv-g-' + g).checked);
@@ -754,31 +760,34 @@
       });
     }
   }
+  function etich(p, m) { return { titolo: (p.titolo || '').trim() || 'Preventivo', menu: (p.etMenu || '').trim() || (m ? m.nome : 'Menu'), serv: (p.etServ || '').trim() || 'Servizio e allestimento', note: (p.note || '').trim() }; }
   function docCliente(p, c, m) {
-    const t = TIPI[p.tipo], nome = m ? esc(m.nome) : 'Menu';
-    let h = '<strong>Preventivo · ' + esc(t.nome) + '</strong>' + (p.cliente ? '<div>' + esc(p.cliente) + '</div>' : '');
+    const t = TIPI[p.tipo], E = etich(p, m), nome = esc(E.menu);
+    let h = '<strong>' + esc(E.titolo) + ' · ' + esc(t.nome) + '</strong>' + (p.cliente ? '<div>' + esc(p.cliente) + '</div>' : '');
     if (p.tipo === 'pra') {
       h += riga(nome + ' · ' + c.pasti + ' pasti a settimana × ' + EUR.format(c.pp), EUR.format(c.ricavo)) + '<div class="piccolo">Giorni: ' + c.giorni.map(g => GIORNI[g]).join(', ') + '</div>' +
         riga('Per ' + (+p.settimane || 1) + ' settimane', EUR.format(c.periodo), true) + '<div class="piccolo">Circa ' + EUR.format(c.mese) + ' al mese. IVA da definire.</div>';
     } else if (p.tipo === 'cat' && p.vista === 'diviso') {
-      h += riga(nome + ' · ' + c.n + ' ' + t.unita + ' × ' + EUR.format(c.ppMenu), EUR.format(c.ricavoMenu)) + riga('Servizio e allestimento', EUR.format(c.forfait)) + riga('Totale', EUR.format(c.totale), true) + '<div class="piccolo">IVA da definire.</div>';
+      h += riga(nome + ' · ' + c.n + ' ' + t.unita + ' × ' + EUR.format(c.ppMenu), EUR.format(c.ricavoMenu)) + riga(esc(E.serv), EUR.format(c.forfait)) + riga('Totale', EUR.format(c.totale), true) + '<div class="piccolo">IVA da definire.</div>';
     } else {
       h += riga(nome + ' · ' + c.n + ' ' + t.unita + ' × ' + EUR.format(c.unico), EUR.format(c.totUnico)) + '<div class="piccolo">Servizio e allestimento inclusi nel prezzo.</div>' + riga('Totale', EUR.format(c.totUnico), true) + '<div class="piccolo">IVA da definire.</div>';
     }
+    if (E.note) h += '<div class="piccolo" style="margin-top:8px">' + esc(E.note) + '</div>';
     return h;
   }
   function testoPrev(p) {
-    const c = calcolaPrev(p), t = TIPI[p.tipo], m = menuDi(p), nome = m ? m.nome : 'Menu', r = ['Preventivo – ' + t.nome];
+    const c = calcolaPrev(p), t = TIPI[p.tipo], m = menuDi(p), E = etich(p, m), nome = E.menu, r = [E.titolo + ' – ' + t.nome];
     if (p.cliente) r.push(p.cliente);
     if (p.tipo !== 'pra' && p.evento) r.push('Data: ' + dataLunga(p.evento));
     r.push('');
     if (p.tipo === 'pra') {
       r.push(nome + ': ' + c.pasti + ' pasti a settimana × ' + EUR.format(c.pp) + ' = ' + EUR.format(c.ricavo), 'Giorni: ' + c.giorni.map(g => GIORNI[g]).join(', '), 'Per ' + (+p.settimane || 1) + ' settimane: ' + EUR.format(c.periodo) + ' (IVA da definire)');
     } else if (p.tipo === 'cat' && p.vista === 'diviso') {
-      r.push(nome + ': ' + c.n + ' ' + t.unita + ' × ' + EUR.format(c.ppMenu) + ' = ' + EUR.format(c.ricavoMenu), 'Servizio e allestimento: ' + EUR.format(c.forfait), 'Totale: ' + EUR.format(c.totale) + ' (IVA da definire)');
+      r.push(nome + ': ' + c.n + ' ' + t.unita + ' × ' + EUR.format(c.ppMenu) + ' = ' + EUR.format(c.ricavoMenu), E.serv + ': ' + EUR.format(c.forfait), 'Totale: ' + EUR.format(c.totale) + ' (IVA da definire)');
     } else {
       r.push(nome + ': ' + c.n + ' ' + t.unita + ' × ' + EUR.format(c.unico) + ' = ' + EUR.format(c.totUnico), 'Servizio e allestimento inclusi', 'Totale: ' + EUR.format(c.totUnico) + ' (IVA da definire)');
     }
+    if (E.note) r.push('', E.note);
     r.push('', 'La Spesa Sfusa');
     return r.join('\n');
   }
@@ -830,7 +839,7 @@
     });
   }
   function righePdf(p) {
-    const c = calcolaPrev(p), t = TIPI[p.tipo], m = menuDi(p), nome = m ? m.nome : 'Menu', R = [];
+    const c = calcolaPrev(p), t = TIPI[p.tipo], m = menuDi(p), nome = etich(p, m).menu, R = [];
     if (p.tipo === 'pra') {
       R.push([nome + ' · ' + c.pasti + ' pasti a settimana × ' + EUR.format(c.pp), EUR.format(c.ricavo)]);
       R.push(['Giorni di consegna: ' + c.giorni.map(g => GIORNI[g]).join(', '), '', 'nota']);
@@ -838,7 +847,7 @@
       R.push(['Circa ' + EUR.format(c.mese) + ' al mese', '', 'nota']);
     } else if (p.tipo === 'cat' && p.vista === 'diviso') {
       R.push([nome + ' · ' + c.n + ' ' + t.unita + ' × ' + EUR.format(c.ppMenu), EUR.format(c.ricavoMenu)]);
-      R.push(['Servizio e allestimento', EUR.format(c.forfait)]);
+      R.push([etich(p, m).serv, EUR.format(c.forfait)]);
       R.push(['Totale', EUR.format(c.totale), 'tot']);
     } else {
       R.push([nome + ' · ' + c.n + ' ' + t.unita + ' × ' + EUR.format(c.unico), EUR.format(c.totUnico)]);
@@ -864,7 +873,7 @@
     y = Math.min(y - altLogo, yT) - 14; linea(y, [16, 36, 62], 1.6); y -= 34;
     // titolo
     const t = TIPI[p.tipo], oggi = new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
-    testo(M, y, 'PREVENTIVO', 22, true, [16, 36, 62]); destra(W - M, y + 2, 'del ' + oggi, 10.5, false, [90, 100, 115]); y -= 20;
+    testo(M, y, etich(p, menuDi(p)).titolo.toUpperCase(), 22, true, [16, 36, 62]); destra(W - M, y + 2, 'del ' + oggi, 10.5, false, [90, 100, 115]); y -= 20;
     testo(M, y, t.nome, 11, false, [90, 100, 115]); y -= 30;
     const campo = (et, val) => { if (!val) return; testo(M, y, et, 8.5, true, [90, 100, 115]); testo(M + 80, y, val, 11); y -= 18; };
     campo('CLIENTE', p.cliente);
@@ -888,7 +897,7 @@
     }
     // note
     const note = [p.tipo === 'pra' ? 'Prezzi per pasto consegnato. IVA da definire.' : 'IVA da definire.', 'Preventivo valido 30 giorni dalla data di emissione.'];
-    if (p.note) note.unshift(p.note);
+    if (etich(p, null).note) note.unshift(etich(p, null).note);
     let yn = 92; linea(yn + 14);
     note.forEach(n => spezza(n, 9, W - 2 * M, false).forEach(rg => { testo(M, yn, rg, 9, false, [90, 100, 115]); yn -= 12; }));
     // assemblaggio
@@ -933,7 +942,7 @@
       ? '<p class="piccolo" style="margin:0 0 8px">Questo telefono è collegato: compiti, spunte, piatti, menu e preventivi sono uguali su tutti i telefoni collegati.</p><p class="piccolo" id="syStato" style="margin:0 0 10px">' + esc(syTesto()) + '</p><button class="btn" data-act="sync-ora">Sincronizza ora</button><button class="btn" data-act="sync-scollega">Scollega questo telefono</button>'
       : '<p class="piccolo" style="margin:0 0 8px">Collega questo telefono al negozio, così mamma e Alessia vedono le stesse cose. Si usa la stessa email e la stessa password di Magazzino (' + esc(SYNC_CONF.email) + '). Si scrive una volta sola su ogni telefono; serve internet.</p><label class="campo largo"><span>Password del negozio</span><input id="sy-pw" type="password" autocomplete="current-password"></label><button class="btn primario" data-act="sync-collega">Collega questo telefono</button>') + '</div>';
     html += '<div class="sezione">Copia di sicurezza</div><div class="gruppo"><button class="btn" data-act="backup">Salva backup</button><button class="btn" data-act="ripristina">Carica un backup</button><button class="btn pericolo" data-act="ripristina-compiti">Rimetti i compiti iniziali</button></div>';
-    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.6.0 · i dati restano su questo telefono.</p>';
+    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.7.0 · i dati restano su questo telefono.</p>';
     return html;
   }
 
