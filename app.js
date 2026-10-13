@@ -765,7 +765,7 @@
     html += '<div class="sezione">Avvisi</div><div class="gruppo"><p class="piccolo" style="margin:0">Un avviso 10 minuti prima di ogni compito. Per ora arriva mentre l\'app è aperta; per averlo anche ad app chiusa serve il collegamento al server del negozio, che si aggiunge dopo.</p>' +
       (supporta ? '<button class="btn ' + (D.notifiche ? '' : 'primario') + '" data-act="notifiche">' + (D.notifiche ? 'Avvisi accesi: spegni' : 'Accendi gli avvisi') + '</button>' : '<p class="piccolo" style="margin:0">Questo telefono non supporta gli avvisi.</p>') + '</div>';
     html += '<div class="sezione">Copia di sicurezza</div><div class="gruppo"><button class="btn" data-act="backup">Salva backup</button><button class="btn" data-act="ripristina">Carica un backup</button><button class="btn pericolo" data-act="ripristina-compiti">Rimetti i compiti iniziali</button></div>';
-    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.4.0 · i dati restano su questo telefono.</p>';
+    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.4.1 · i dati restano su questo telefono.</p>';
     return html;
   }
 
@@ -968,7 +968,16 @@
     },
     'elimina-prodotto'(b) {
       const id = b.dataset.id, usato = D.piatti.some(d => (d.ing || []).some(i => i.pid === id));
-      if (usato) { toast('È usato in un piatto: toglilo prima da lì'); return; }
+      if (usato) {
+        const nomi = D.piatti.filter(d => (d.ing || []).some(i => i.pid === id)).map(d => d.nome);
+        apriModale('<h2>Eliminare il prodotto?</h2><p>È un ingrediente di: <b>' + esc(nomi.join(', ')) + '</b>. Lo tolgo anche da quei piatti.</p><div class="azioni"><button class="btn pericolo" data-mact="conferma-elimina-prodotto" data-id="' + esc(id) + '">Elimina</button><button class="btn" data-mact="chiudi">Annulla</button></div>');
+        return;
+      }
+      MAZ['conferma-elimina-prodotto'](b);
+    },
+    'conferma-elimina-prodotto'(b) {
+      const id = b.dataset.id;
+      D.piatti.forEach(d => { d.ing = (d.ing || []).filter(i => i.pid !== id); });
       D.prodotti = D.prodotti.filter(x => x.id !== id); salva(); chiudiModale(); render(); toast('Prodotto eliminato');
     },
     'aggiungi-riga'() { $('#pi-righe').insertAdjacentHTML('beforeend', rigaIng(null)); },
@@ -1019,7 +1028,16 @@
     },
     'elimina-piatto'(b) {
       const id = b.dataset.id;
-      if (D.menu.some(m => (m.piatti || []).indexOf(id) > -1)) { toast('È in un menu: toglilo prima da lì'); return; }
+      const inMenu = D.menu.filter(m => (m.piatti || []).indexOf(id) > -1);
+      if (inMenu.length) {
+        apriModale('<h2>Eliminare il piatto?</h2><p>È dentro ' + (inMenu.length === 1 ? 'il menu' : 'i menu') + ': <b>' + esc(inMenu.map(m => m.nome).join(', ')) + '</b>. Lo tolgo anche da lì.</p><div class="azioni"><button class="btn pericolo" data-mact="conferma-elimina-piatto" data-id="' + esc(id) + '">Elimina</button><button class="btn" data-mact="chiudi">Annulla</button></div>');
+        return;
+      }
+      MAZ['conferma-elimina-piatto'](b);
+    },
+    'conferma-elimina-piatto'(b) {
+      const id = b.dataset.id;
+      D.menu.forEach(m => { m.piatti = (m.piatti || []).filter(x => x !== id); });
       D.piatti = D.piatti.filter(x => x.id !== id); salva(); chiudiModale(); render(); toast('Piatto eliminato');
     },
     'salva-menu'(b) {
@@ -1034,7 +1052,16 @@
     },
     'elimina-menu'(b) {
       const id = b.dataset.id;
-      if (D.preventivi.some(p => p.menuId === id)) { toast('È usato in un preventivo: toglilo prima da lì'); return; }
+      const n = D.preventivi.filter(p => p.menuId === id).length;
+      if (n) {
+        apriModale('<h2>Eliminare il menu?</h2><p>È scelto in ' + n + (n === 1 ? ' preventivo' : ' preventivi') + ': resteranno senza menu e dovrai sceglierne un altro.</p><div class="azioni"><button class="btn pericolo" data-mact="conferma-elimina-menu" data-id="' + esc(id) + '">Elimina</button><button class="btn" data-mact="chiudi">Annulla</button></div>');
+        return;
+      }
+      MAZ['conferma-elimina-menu'](b);
+    },
+    'conferma-elimina-menu'(b) {
+      const id = b.dataset.id;
+      D.preventivi.forEach(p => { if (p.menuId === id) p.menuId = ''; });
       D.menu = D.menu.filter(x => x.id !== id); salva(); chiudiModale(); render(); toast('Menu eliminato');
     },
     'crea-compiti'() {
