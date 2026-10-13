@@ -22,3 +22,6 @@ I dati restano nel telefono (localStorage). Il backup si salva da Impostazioni.
 - Collegare le spunte e i compiti tra i due telefoni con il Firebase del negozio.
 - Avvisi anche ad app chiusa.
 - Leggere dal Magazzino scadenze e scorte, e costi veri dalle ricette.
+
+## 1.9.0
+Preventivo semplificato: una sola schermata a domande ("Per chi e quando?", "Cosa mangiano?", "Chi lavora e cosa serve?", "A che prezzo?"). Il personale si calcola da solo (modificabile), le altre spese sono un elenco unico di voci con suggerimenti ricordati dai preventivi precedenti. La sezione "Servizio" è sparita da Prepara: i valori predefiniti del personale e le voci salvate sono in Impostazioni. I vecchi preventivi si convertono da soli.

@@ -203,3 +203,22 @@ details.blocco:not([open]) > summary::after { transform: rotate(-90deg); }
 details.blocco .num { width: 24px; height: 24px; border-radius: 50%; background: var(--blue-soft); color: var(--blue); display: inline-grid; place-items: center; font-size: 0.8rem; font-weight: 700; }
 details.blocco .corpo { padding: 0 14px 14px; }
 .rl-riga { grid-template-columns: 1fr 56px 78px 44px; }
+
+/* ---------- preventivo semplificato (1.9.0) ---------- */
+.dom { margin: 22px 0 8px; }
+.dom h3 { margin: 0; font-size: 1.1rem; color: var(--ink); }
+.dom p { margin: 2px 0 0; font-size: 0.85rem; color: var(--ink-soft); }
+.frase { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 1rem; color: var(--ink); }
+.frase input { width: 64px; min-height: 44px; text-align: center; font-size: 1rem; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--ink); }
+.voce-riga { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.voce-riga input[type=text] { min-height: 44px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--ink); padding: 0 10px; font-size: 1rem; }
+.voce-riga .vc-n { flex: 1 1 auto; min-width: 0; }
+.voce-riga .vc-p { width: 76px; text-align: right; flex: 0 0 auto; }
+.vc-a { display: flex; flex-direction: column; align-items: center; font-size: 0.68rem; color: var(--ink-soft); gap: 2px; flex: 0 0 auto; }
+.vc-a input { width: 22px; height: 22px; }
+.voce-riga button { min-width: 36px; min-height: 44px; border: 0; background: transparent; color: var(--ink-faint); font-size: 1.1rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 10px; }
+.chip { min-height: 40px; padding: 0 14px; border-radius: 20px; border: 1px solid var(--line); background: var(--blue-soft); color: var(--blue); font-size: 0.9rem; }
+.consiglio { background: var(--blue-soft); color: var(--ink); border-radius: var(--r); padding: 12px 14px; margin: 0 0 12px; font-size: 1rem; line-height: 1.4; }
+details.altro { margin: 18px 0 8px; border-top: 1px solid var(--line); padding-top: 10px; }
+details.altro summary { cursor: pointer; color: var(--ink-soft); font-size: 0.9rem; min-height: 44px; display: flex; align-items: center; }
