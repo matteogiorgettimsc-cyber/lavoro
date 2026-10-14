@@ -8,7 +8,7 @@
      ========================================================= */
   const KEY = 'lavoro-spesa-sfusa-v1';
   const GIORNI = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
-  const NOME = { m: 'Mamma', a: 'Alessia' };
+  const NOME = { m: 'Anita', a: 'Alessia' };
   const EUR = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
   const TUTTI = [1, 2, 3, 4, 5, 6];
   const SVG_OK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -439,7 +439,7 @@
 
   function viewScelta() {
     return '<div class="benvenuto">' + testata('Chi sei?', 'Scegli una volta sola: questo telefono mostra i compiti di chi è scelta.') +
-      '<button class="btn scuro" data-act="scegli" data-p="m">Mamma</button>' +
+      '<button class="btn scuro" data-act="scegli" data-p="m">Anita</button>' +
       '<button class="btn scuro" data-act="scegli" data-p="a">Alessia</button></div>';
   }
 
@@ -478,7 +478,7 @@
     const lista = compitiDel(data, filtro === 't' ? null : filtro);
     let html = testata('Settimana', 'Compiti e orari. Tocca un compito per cambiarlo.');
     html += '<div class="giorni" role="group" aria-label="Giorno">' + TUTTI.map(g => '<button data-act="giorno" data-g="' + g + '" aria-pressed="' + (g === S.giorno) + '" class="' + (g === oggiDow ? 'oggi' : '') + '">' + GIORNI[g] + '</button>').join('') + '</div>';
-    html += '<div class="seg" role="group" aria-label="Persona">' + [['m', 'Mamma'], ['a', 'Alessia'], ['t', 'Tutti']].map(x => '<button data-act="filtro" data-f="' + x[0] + '" aria-pressed="' + (filtro === x[0]) + '">' + x[1] + '</button>').join('') + '</div>';
+    html += '<div class="seg" role="group" aria-label="Persona">' + [['m', 'Anita'], ['a', 'Alessia'], ['t', 'Tutti']].map(x => '<button data-act="filtro" data-f="' + x[0] + '" aria-pressed="' + (filtro === x[0]) + '">' + x[1] + '</button>').join('') + '</div>';
     if (!lista.length) html += '<div class="vuoto">Nessun compito per questo giorno.</div>';
     lista.forEach(t => {
       html += '<button class="riga" data-act="apri-compito" data-id="' + esc(t.id) + '"><span class="ora">' + esc(t.da) + '<br><span class="chi">' + esc(t.a) + '</span></span><span><b>' + esc(t.t) + '</b>' + (t.data ? '<br><span class="chi">Una volta sola · ' + esc(dataBreve(t.data)) + '</span>' : '') + '</span><span class="chi">' + esc(chiTesto(t.chi)) + '</span></button>';
@@ -971,9 +971,9 @@
       (supporta ? '<button class="btn ' + (D.notifiche ? '' : 'primario') + '" data-act="notifiche">' + (D.notifiche ? 'Avvisi accesi: spegni' : 'Accendi gli avvisi') + '</button>' : '<p class="piccolo" style="margin:0">Questo telefono non supporta gli avvisi.</p>') + '</div>';
     html += '<div class="sezione">Più telefoni insieme</div><div class="gruppo">' + (syAttiva()
       ? '<p class="piccolo" style="margin:0 0 8px">Questo telefono è collegato: compiti, spunte, piatti, menu e preventivi sono uguali su tutti i telefoni collegati.</p><p class="piccolo" id="syStato" style="margin:0 0 10px">' + esc(syTesto()) + '</p><button class="btn" data-act="sync-ora">Sincronizza ora</button><button class="btn" data-act="sync-scollega">Scollega questo telefono</button>'
-      : '<p class="piccolo" style="margin:0 0 8px">Collega questo telefono al negozio, così mamma e Alessia vedono le stesse cose. Si usa la stessa email e la stessa password di Magazzino (' + esc(SYNC_CONF.email) + '). Si scrive una volta sola su ogni telefono; serve internet.</p><label class="campo largo"><span>Password del negozio</span><input id="sy-pw" type="password" autocomplete="current-password"></label><button class="btn primario" data-act="sync-collega">Collega questo telefono</button>') + '</div>';
+      : '<p class="piccolo" style="margin:0 0 8px">Collega questo telefono al negozio, così Anita e Alessia vedono le stesse cose. Si usa la stessa email e la stessa password di Magazzino (' + esc(SYNC_CONF.email) + '). Si scrive una volta sola su ogni telefono; serve internet.</p><label class="campo largo"><span>Password del negozio</span><input id="sy-pw" type="password" autocomplete="current-password"></label><button class="btn primario" data-act="sync-collega">Collega questo telefono</button>') + '</div>';
     html += '<div class="sezione">Copia di sicurezza</div><div class="gruppo"><button class="btn" data-act="backup">Salva backup</button><button class="btn" data-act="ripristina">Carica un backup</button><button class="btn pericolo" data-act="ripristina-compiti">Rimetti i compiti iniziali</button></div>';
-    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.9.0 · i dati restano su questo telefono.</p>';
+    html += '<p class="piccolo" style="margin-top:18px">Lavoro 1.9.1 · i dati restano su questo telefono.</p>';
     return html;
   }
 
