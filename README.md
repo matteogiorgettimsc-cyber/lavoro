@@ -25,3 +25,6 @@ I dati restano nel telefono (localStorage). Il backup si salva da Impostazioni.
 
 ## 1.9.0
 Preventivo semplificato: una sola schermata a domande ("Per chi e quando?", "Cosa mangiano?", "Chi lavora e cosa serve?", "A che prezzo?"). Il personale si calcola da solo (modificabile), le altre spese sono un elenco unico di voci con suggerimenti ricordati dai preventivi precedenti. La sezione "Servizio" è sparita da Prepara: i valori predefiniti del personale e le voci salvate sono in Impostazioni. I vecchi preventivi si convertono da soli.
+
+## 2.0.0
+Nuovo aspetto "Bottega": verde bottiglia, carta di sacco, titoli con caratteri da insegna, cartellini tratteggiati. Funzioni e schermate invariate.

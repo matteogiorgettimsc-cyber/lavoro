@@ -1,40 +1,42 @@
-/* Lavoro – La Spesa Sfusa
-   Impostazione: titolo grande a sinistra, niente barra colorata in alto, cronologia con binario degli orari,
-   scheda con filo laterale per lo stato. Blu navy e grigi freddi, angoli piccoli, numeri allineati. */
+/* Lavoro – La Spesa Sfusa · "Bottega"
+   Verde bottiglia come colore del negozio, carta di sacco per l'accento, titoli con la grazia di un'insegna,
+   etichette tratteggiate come i cartellini dei barattoli. Numeri sempre allineati. */
 :root {
-  --bg: #eef1f5;
-  --surface: #ffffff;
-  --ink: #0f1b2d;
-  --ink-soft: #52627a;
-  --ink-faint: #8593a8;
-  --line: #d5dce6;
-  --navy: #10243e;
-  --navy-ink: #ffffff;
-  --blue: #1e5fbf;
-  --blue-soft: #e3ecfa;
-  --amber: #b45f06;
-  --amber-soft: #fcebd3;
-  --red: #b3261e;
-  --red-soft: #fbe4e1;
-  --green: #1f7a4d;
-  --green-soft: #ddf1e6;
-  --r: 8px;
+  --bg: #e8ece1;
+  --surface: #fcfbf6;
+  --ink: #1e2a23;
+  --ink-soft: #55645a;
+  --ink-faint: #8a978d;
+  --line: #d3d9c9;
+  --navy: #26402f;
+  --navy-ink: #f6f3e8;
+  --blue: #2f6b4f;
+  --blue-soft: #dce8d6;
+  --amber: #a8701f;
+  --amber-soft: #f6e6c8;
+  --kraft: #c8923f;
+  --red: #b0402a;
+  --red-soft: #f8e1da;
+  --green: #2f7a46;
+  --green-soft: #d8eed9;
+  --r: 12px;
   --tap: 48px;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0b1522; --surface: #132235; --ink: #e8eef6; --ink-soft: #a3b3c8; --ink-faint: #70829a;
-    --line: #26384f; --navy: #0b1522; --navy-ink: #e8eef6; --blue: #6aa2ff; --blue-soft: #1a3358;
-    --amber: #f0a45b; --amber-soft: #3a2a17; --red: #ff8f86; --red-soft: #3d1c1a;
-    --green: #5fd09a; --green-soft: #153326; color-scheme: dark;
+    --bg: #131b16; --surface: #1c2721; --ink: #e8efe4; --ink-soft: #a6b5a9; --ink-faint: #71836f;
+    --line: #2d3d33; --navy: #0e1511; --navy-ink: #e8efe4; --blue: #8fcfa6; --blue-soft: #25382c;
+    --amber: #e3b265; --amber-soft: #3b2f18; --kraft: #d9a655; --red: #f19580; --red-soft: #42201a;
+    --green: #78d197; --green-soft: #1a3324; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0b1522; --surface: #132235; --ink: #e8eef6; --ink-soft: #a3b3c8; --ink-faint: #70829a;
-  --line: #26384f; --navy: #0b1522; --navy-ink: #e8eef6; --blue: #6aa2ff; --blue-soft: #1a3358;
-  --amber: #f0a45b; --amber-soft: #3a2a17; --red: #ff8f86; --red-soft: #3d1c1a;
-  --green: #5fd09a; --green-soft: #153326; color-scheme: dark;
+  --bg: #131b16; --surface: #1c2721; --ink: #e8efe4; --ink-soft: #a6b5a9; --ink-faint: #71836f;
+  --line: #2d3d33; --navy: #0e1511; --navy-ink: #e8efe4; --blue: #8fcfa6; --blue-soft: #25382c;
+  --amber: #e3b265; --amber-soft: #3b2f18; --kraft: #d9a655; --red: #f19580; --red-soft: #42201a;
+  --green: #78d197; --green-soft: #1a3324; color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
@@ -53,18 +55,19 @@ main { max-width: 640px; margin-inline: auto; padding: calc(18px + env(safe-area
 
 /* ---------- intestazione di pagina ---------- */
 .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin-bottom: 16px; }
-.brand { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em; color: var(--ink-soft); }
-h1 { margin: 2px 0 0; font-size: 2rem; line-height: 1.05; letter-spacing: -0.02em; font-weight: 750; }
+.brand { font-family: var(--serif); font-size: 0.95rem; font-style: italic; font-weight: 600; color: var(--ink-soft); }
+h1 { margin: 2px 0 0; font-family: var(--serif); font-size: 2.1rem; line-height: 1.05; letter-spacing: -0.01em; font-weight: 700; }
 .sub { margin: 4px 0 0; color: var(--ink-soft); }
-.who { flex: none; background: var(--navy); color: var(--navy-ink); font-weight: 650; font-size: 0.9rem; padding: 6px 12px; border-radius: 99px; }
-h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.005em; }
-.sezione { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; color: var(--ink-soft); margin: 22px 0 8px; }
+.who { flex: none; background: var(--kraft); color: #2a1d08; font-weight: 700; font-size: 0.9rem; padding: 6px 14px; border-radius: 8px; border: 2px dashed rgba(42,29,8,0.45); transform: rotate(-2deg); }
+h2 { margin: 0; font-family: var(--serif); font-size: 1.15rem; font-weight: 700; }
+.sezione { display: flex; align-items: center; gap: 10px; font-family: var(--serif); font-size: 1.05rem; font-weight: 700; color: var(--ink); margin: 26px 0 10px; }
+.sezione::after { content: ""; flex: 1; border-top: 2px dashed var(--line); }
 
 /* ---------- riepilogo ---------- */
 .kpi { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); margin-bottom: 18px; }
 .kpi > div { padding: 12px 14px; border-left: 1px solid var(--line); min-width: 0; }
 .kpi > div:first-child { border-left: 0; }
-.kpi b { display: block; font-size: 1.5rem; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.kpi b { display: block; font-family: var(--serif); font-size: 1.6rem; font-variant-numeric: tabular-nums; }
 .kpi span { color: var(--ink-soft); font-size: 0.8rem; }
 .kpi .rosso b { color: var(--red); }
 
@@ -78,19 +81,19 @@ ul.tempo { list-style: none; margin: 0; padding: 0; }
 .rail::before { content: ""; position: absolute; left: 6px; top: 20px; bottom: -10px; width: 2px; background: var(--line); }
 .slot:last-child .rail::before { display: none; }
 .rail::after { content: ""; position: absolute; left: 0; top: 14px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); border: 3px solid var(--blue); }
-.slot.ora .rail::after { border-color: var(--amber); background: var(--amber); }
+.slot.ora .rail::after { border-color: var(--kraft); background: var(--kraft); }
 .slot.fatto .rail::after { border-color: var(--green); background: var(--green); }
 .slot.ritardo .rail::after { border-color: var(--red); }
 .scheda { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--blue); border-radius: var(--r); padding: 10px 10px 10px 14px; min-width: 0; }
-.slot.ora .scheda { border-left-color: var(--amber); background: var(--amber-soft); }
+.slot.ora .scheda { border-left-color: var(--kraft); background: var(--amber-soft); }
 .slot.fatto .scheda { border-left-color: var(--green); }
 .slot.ritardo .scheda { border-left-color: var(--red); }
 .tit { font-weight: 650; overflow-wrap: anywhere; }
 .slot.fatto .tit { text-decoration: line-through; color: var(--ink-faint); }
 .nota { color: var(--ink-soft); font-size: 0.88rem; margin-top: 2px; overflow-wrap: anywhere; }
 .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
-.tag { font-size: 0.72rem; font-weight: 650; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 4px; background: var(--blue-soft); color: var(--ink); }
-.tag.adesso { background: var(--amber); color: #fff; }
+.tag { font-size: 0.78rem; font-weight: 650; padding: 2px 9px; border-radius: 6px; border: 1px dashed var(--ink-faint); background: var(--blue-soft); color: var(--ink); }
+.tag.adesso { background: var(--kraft); color: #2a1d08; border-color: #2a1d08; }
 .tag.ritardo { background: var(--red-soft); color: var(--red); }
 .check { width: var(--tap); height: var(--tap); border-radius: var(--r); border: 2px solid var(--blue); background: transparent; display: grid; place-items: center; cursor: pointer; color: transparent; }
 .check svg { width: 26px; height: 26px; }
@@ -132,8 +135,8 @@ ul.tempo { list-style: none; margin: 0; padding: 0; }
 
 /* ---------- preventivi ---------- */
 .pannello { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; margin-top: 14px; }
-.pannello.privato { border-top: 4px solid var(--amber); }
-.pannello .etichetta { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; color: var(--ink-soft); margin-bottom: 8px; }
+.pannello.privato { border-top: 4px solid var(--kraft); }
+.pannello .etichetta { font-family: var(--serif); font-size: 1rem; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
 .r { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
 .r > span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .r > span:last-child { white-space: nowrap; }
@@ -147,7 +150,7 @@ ul.tempo { list-style: none; margin: 0; padding: 0; }
 .preventivo-riga b { overflow-wrap: anywhere; }
 .preventivo-riga .tot { font-weight: 750; font-variant-numeric: tabular-nums; text-align: right; }
 .preventivo-riga .piccolo:last-child { text-align: right; }
-.stato-tag { display: inline-block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; padding: 1px 8px; border-radius: 4px; background: var(--blue-soft); }
+.stato-tag { display: inline-block; font-size: 0.78rem; font-weight: 700; padding: 1px 9px; border-radius: 6px; border: 1px dashed currentColor; background: var(--blue-soft); }
 .stato-tag.acc { background: var(--green-soft); color: var(--green); }
 ul.piano { list-style: none; margin: 0; padding: 0; }
 ul.piano li { display: grid; grid-template-columns: 104px 1fr; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
@@ -175,11 +178,11 @@ ul.piano li { display: grid; grid-template-columns: 104px 1fr; gap: 10px; paddin
 .nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 62px; text-decoration: none; font-size: 0.7rem; font-weight: 600; opacity: 0.7; position: relative; }
 .nav a svg { width: 24px; height: 24px; }
 .nav a[aria-current="page"] { opacity: 1; }
-.nav a[aria-current="page"]::before { content: ""; position: absolute; top: 0; left: 28%; right: 28%; height: 3px; background: #f5a623; border-radius: 0 0 3px 3px; }
+.nav a[aria-current="page"]::before { content: ""; position: absolute; top: 0; left: 28%; right: 28%; height: 3px; background: var(--kraft); border-radius: 0 0 3px 3px; }
 
 /* ---------- finestra e avviso ---------- */
-dialog { border: 0; border-radius: 12px; padding: 0; width: min(92vw, 520px); max-height: 90vh; background: var(--surface); color: var(--ink); }
-dialog::backdrop { background: rgba(8, 16, 28, 0.55); }
+dialog { border: 0; border-radius: 16px; padding: 0; width: min(92vw, 520px); max-height: 90vh; background: var(--surface); color: var(--ink); }
+dialog::backdrop { background: rgba(14, 21, 17, 0.55); }
 #modalBody { padding: 18px 16px 16px; overflow-y: auto; max-height: 90vh; }
 #modalBody h2 { margin-bottom: 12px; }
 #toast { position: fixed; left: 16px; right: 16px; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 40; max-width: 480px; margin-inline: auto; background: var(--navy); color: var(--navy-ink); padding: 12px 14px; border-radius: var(--r); font-weight: 600; text-align: center; }
@@ -191,10 +194,10 @@ dialog::backdrop { background: rgba(8, 16, 28, 0.55); }
 
 .modifica { background: none; border: 0; padding: 6px 0 0; color: var(--blue); font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; text-decoration: underline; }
 
-.barra { position: sticky; top: 0; z-index: 5; display: flex; gap: 6px; background: var(--navy); color: var(--navy-ink); border-radius: var(--r); padding: 10px 12px; margin: 12px 0; box-shadow: 0 2px 8px rgba(16,36,62,0.25); }
+.barra { position: sticky; top: 0; z-index: 5; display: flex; gap: 6px; background: var(--navy); color: var(--navy-ink); border-radius: var(--r); padding: 10px 12px; margin: 12px 0; box-shadow: 0 2px 8px rgba(30,42,35,0.25); }
 .barra div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.barra span { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.75; }
-.barra b { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.barra span { font-size: 0.75rem; opacity: 0.8; }
+.barra b { font-family: var(--serif); font-size: 1.2rem; font-variant-numeric: tabular-nums; }
 details.blocco { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); margin-top: 10px; }
 details.blocco > summary { cursor: pointer; list-style: none; padding: 13px 14px; font-weight: 650; display: flex; align-items: center; gap: 10px; }
 details.blocco > summary::-webkit-details-marker { display: none; }
@@ -206,7 +209,7 @@ details.blocco .corpo { padding: 0 14px 14px; }
 
 /* ---------- preventivo semplificato (1.9.0) ---------- */
 .dom { margin: 22px 0 8px; }
-.dom h3 { margin: 0; font-size: 1.1rem; color: var(--ink); }
+.dom h3 { margin: 0; font-family: var(--serif); font-size: 1.25rem; color: var(--ink); }
 .dom p { margin: 2px 0 0; font-size: 0.85rem; color: var(--ink-soft); }
 .frase { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 1rem; color: var(--ink); }
 .frase input { width: 64px; min-height: 44px; text-align: center; font-size: 1rem; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--ink); }
@@ -218,7 +221,7 @@ details.blocco .corpo { padding: 0 14px 14px; }
 .vc-a input { width: 22px; height: 22px; }
 .voce-riga button { min-width: 36px; min-height: 44px; border: 0; background: transparent; color: var(--ink-faint); font-size: 1.1rem; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 10px; }
-.chip { min-height: 40px; padding: 0 14px; border-radius: 20px; border: 1px solid var(--line); background: var(--blue-soft); color: var(--blue); font-size: 0.9rem; }
-.consiglio { background: var(--blue-soft); color: var(--ink); border-radius: var(--r); padding: 12px 14px; margin: 0 0 12px; font-size: 1rem; line-height: 1.4; }
+.chip { min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px dashed var(--blue); background: var(--blue-soft); color: var(--blue); font-size: 0.9rem; }
+.consiglio { font-family: var(--serif); font-size: 1.05rem; background: var(--blue-soft); border-left: 4px solid var(--blue); color: var(--ink); border-radius: var(--r); padding: 12px 14px; margin: 0 0 12px; font-size: 1rem; line-height: 1.4; }
 details.altro { margin: 18px 0 8px; border-top: 1px solid var(--line); padding-top: 10px; }
 details.altro summary { cursor: pointer; color: var(--ink-soft); font-size: 0.9rem; min-height: 44px; display: flex; align-items: center; }
