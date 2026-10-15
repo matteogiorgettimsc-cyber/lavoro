@@ -1018,7 +1018,7 @@
       : '<p class="piccolo" style="margin:0 0 8px">Collega questo telefono al negozio, così Anita e Alessia vedono le stesse cose. Si usa la stessa email e la stessa password di Magazzino (' + esc(SYNC_CONF.email) + '). Si scrive una volta sola su ogni telefono; serve internet.</p><label class="campo largo"><span>Password del negozio</span><input id="sy-pw" type="password" autocomplete="current-password"></label><button class="btn primario" data-act="sync-collega">Collega questo telefono</button>') + '</div>';
     html += '<div class="sezione">Magazzino</div><div class="gruppo"><p class="piccolo" style="margin:0">' + (syAttiva() ? 'I prodotti e i prezzi si leggono dal Magazzino e si aggiornano da soli.' : 'Collega il telefono qui sopra e i prodotti e i prezzi del Magazzino arrivano da soli.') + '</p><a class="btn" href="' + MAG_URL + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none">Apri Magazzino</a></div>';
     html += '<div class="sezione">Copia di sicurezza</div><div class="gruppo"><button class="btn" data-act="backup">Salva backup</button><button class="btn" data-act="ripristina">Carica un backup</button><button class="btn pericolo" data-act="ripristina-compiti">Rimetti i compiti iniziali</button></div>';
-    html += '<p class="piccolo" style="margin-top:18px">Lavoro 2.2.0 · i dati restano su questo telefono.</p>';
+    html += '<p class="piccolo" style="margin-top:18px">Lavoro 2.2.1 · i dati restano su questo telefono.</p>';
     return html;
   }
 
