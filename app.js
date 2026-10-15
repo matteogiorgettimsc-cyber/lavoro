@@ -16,7 +16,7 @@
   const BASI = [['acq', 'Prezzo d\'acquisto, IVA esclusa'], ['acqiva', 'Prezzo d\'acquisto, IVA inclusa'], ['ven', 'Prezzo di vendita nel negozio']];
 
   const TIPI = {
-    cat: { nome: 'Catering ed eventi', corto: 'Catering', unita: 'persone', rif: true,
+    cat: { nome: 'Eventi e cene', corto: 'Eventi', unita: 'persone', rif: true,
       compiti: [[-14, 'Conferma menu e ospiti', ['m']], [-7, 'Ordina ingredienti e materiali', ['m']], [-3, 'Acquisti freschi e controllo scorte', ['a']], [-1, 'Prepara le basi e carica l\'allestimento', ['m', 'a']], [0, 'Evento: servizio e allestimento', ['m', 'a']]] },
     pra: { nome: 'Pranzo aziendale', corto: 'Pranzi', unita: 'pasti', rif: false, compiti: [] },
     ces: { nome: 'Bomboniere e ceste', corto: 'Ceste', unita: 'pezzi', rif: false,
@@ -30,7 +30,7 @@
   function predefiniti() {
     const c = (id, da, a, t, chi, g, n) => ({ id, t, n: n || '', da, a, chi, g, data: null });
     return {
-      v: 2, pesi: {}, profilo: null, azienda: { nome: 'La Spesa Sfusa di Mancini Anita', indirizzo: 'Via Lazio 66, 63812 Montegranaro (FM)', tel: '331 405 2958', email: 'laspesasfusa@gmail.com', piva: '02174870440', pec: 'laspesasfusa@pec.it', logo: '' }, ricarico: 50, notifiche: false, fatti: {}, preventivi: [],
+      v: 2, pesi: {}, profilo: null, azienda: { nome: 'La Spesa Sfusa di Anita Mancini', indirizzo: 'Via Lazio 66, 63812 Montegranaro (FM)', tel: '331 405 2958', email: 'laspesasfusa@gmail.com', piva: '02174870440', pec: 'laspesasfusa@pec.it', logo: '' }, ricarico: 50, notifiche: false, fatti: {}, preventivi: [],
       prodotti: [], piatti: [], menu: [],
       servizio: { pers: { ogni: 25, min: 2, ore: 6, tar: 12 }, voci: [] },
       basePrezzo: { cat: 'acq', pra: 'acq', ces: 'ven' },
@@ -67,7 +67,8 @@
   }
   function migra(o) {
     const d = Object.assign(predefiniti(), o || {});
-    d.azienda = Object.assign({ nome: 'La Spesa Sfusa di Mancini Anita', indirizzo: 'Via Lazio 66, 63812 Montegranaro (FM)', tel: '331 405 2958', email: 'laspesasfusa@gmail.com', piva: '02174870440', pec: 'laspesasfusa@pec.it', logo: '' }, d.azienda || {});
+    d.azienda = Object.assign({ nome: 'La Spesa Sfusa di Anita Mancini', indirizzo: 'Via Lazio 66, 63812 Montegranaro (FM)', tel: '331 405 2958', email: 'laspesasfusa@gmail.com', piva: '02174870440', pec: 'laspesasfusa@pec.it', logo: '' }, d.azienda || {});
+    if (d.azienda.nome === 'La Spesa Sfusa di Mancini Anita') d.azienda.nome = 'La Spesa Sfusa di Anita Mancini';
     if (!d.pesi || typeof d.pesi !== 'object') d.pesi = {};
     if (!Array.isArray(d.menu)) d.menu = [];
     if (!Array.isArray(d.prodotti)) d.prodotti = [];
@@ -120,7 +121,7 @@
       D[tipo] = (D[tipo] || []).filter(x => String(x.id) !== id);
       if (!del && val && !(tipo === 'prodotti' && val.origine === 'magazzino')) D[tipo].push(val);
     } else if (tipo === 'fatti') { if (del) delete D.fatti[id]; else D.fatti[id] = true; }
-    else if (key === 'cfg~azienda' && val) D.azienda = Object.assign(D.azienda, val);
+    else if (key === 'cfg~azienda' && val) { D.azienda = Object.assign(D.azienda, val); if (D.azienda.nome === 'La Spesa Sfusa di Mancini Anita') D.azienda.nome = 'La Spesa Sfusa di Anita Mancini'; }
     else if (key === 'cfg~servizio' && val) D.servizio = val;
     else if (key === 'cfg~pesi' && val) D.pesi = val;
     else if (key === 'cfg~prezzi' && val) { D.ricarico = val.ricarico; D.basePrezzo = Object.assign(D.basePrezzo, val.basePrezzo); }
@@ -556,7 +557,7 @@
     const passo = (n, titolo, testo, href) => '<a class="passo" href="' + href + '"><span class="num">' + n + '</span><span><b>' + esc(titolo) + '</b><br><span class="piccolo">' + esc(testo) + '</span></span><span class="freccia">›</span></a>';
     html += passo(1, 'Prodotti e prezzi', D.prodotti.length ? D.prodotti.length + ' prodotti' : 'Carica il backup del Magazzino o aggiungili a mano', '#prodotti');
     html += passo(2, 'Piatti', D.piatti.length ? D.piatti.length + ' piatti con gli ingredienti' : 'I piatti che fai di solito, con gli ingredienti per persona', '#piatti');
-    html += passo(3, 'Menu', D.menu.length ? D.menu.length + ' menu' : 'Metti insieme i piatti: catering, pranzi aziendali, ceste', '#menu');
+    html += passo(3, 'Menu', D.menu.length ? D.menu.length + ' menu' : 'Metti insieme i piatti: eventi, pranzi aziendali, ceste', '#menu');
     if (!D.prodotti.length && !D.piatti.length) {
       html += '<div class="pannello"><div class="etichetta">Per provare</div><p style="margin:0 0 10px">Carica dei dati inventati per vedere come funziona. Si cancellano con un tasto.</p><button class="btn scuro pieno" data-act="esempi">Carica i dati d\'esempio</button></div>';
     } else if (D.prodotti.some(x => x.origine === 'esempio')) {
@@ -733,7 +734,7 @@
     html += '<details class="altro"><summary>Altre opzioni: ricarico, IVA, acconto, nomi delle voci</summary><div class="campi">' + campoN('pv-ric', 'Ricarico sui prodotti (%)', p.ric) +
       '<label class="campo"><span>IVA</span><select id="pv-iva">' + [['', 'Da definire'], ['0', 'Esclusa (0%)'], ['4', '4%'], ['10', '10%'], ['22', '22%']].map(o => '<option value="' + o[0] + '"' + (String(p.iva == null ? '' : p.iva) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></label>' +
       campoN('pv-acc', 'Acconto (%)', p.acc || 0) + (pra ? '' : campoN('pv-val', 'Valido per (giorni)', p.validita || 30)) +
-      campoT('pv-titolo', 'Titolo del documento', p.titolo, 'Preventivo') + campoT('pv-etm', 'Nome della voce ' + (pra ? 'dei pasti' : 'del menu'), p.etMenu, 'Come il nome del menu') +
+      campoT('pv-titolo', 'Titolo del documento', p.titolo, 'Nel PDF: Proposta') + campoT('pv-etm', 'Nome della voce ' + (pra ? 'dei pasti' : 'del menu'), p.etMenu, 'Come il nome del menu') +
       (pra ? '' : campoT('pv-ets', 'Nome della voce del servizio', p.etServ, 'Servizio e allestimento')) + campoT('pv-nota', 'Nota per il cliente', p.note, 'Es. Include cena servita e brindisi') + '</div></details>';
     html += '<div class="pannello privato"><div class="etichetta">Solo per te · non va al cliente</div><div id="pv-costi"></div><div id="pv-margine"></div><div id="pv-conf"></div></div>';
     html += '<div class="pannello"><div class="etichetta">Cosa vede il cliente</div><div id="pv-doc"></div></div>';
@@ -944,7 +945,7 @@
     y = Math.min(y - altLogo, yT) - 14; linea(y, [16, 36, 62], 1.6); y -= 34;
     // titolo
     const t = TIPI[p.tipo], oggi = new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
-    testo(M, y, etich(p, menuDi(p)).titolo.toUpperCase(), 22, true, [16, 36, 62]); destra(W - M, y + 2, 'del ' + oggi, 10.5, false, [90, 100, 115]); y -= 20;
+    testo(M, y, ((p.titolo || '').trim() || 'Proposta').toUpperCase(), 22, true, [16, 36, 62]); destra(W - M, y + 2, 'del ' + oggi, 10.5, false, [90, 100, 115]); y -= 20;
     testo(M, y, t.nome, 11, false, [90, 100, 115]); y -= 30;
     const campo = (et, val) => { if (!val) return; testo(M, y, et, 8.5, true, [90, 100, 115]); testo(M + 80, y, val, 11); y -= 18; };
     campo('CLIENTE', p.cliente);
@@ -967,7 +968,7 @@
       piatti.forEach(d => { if (y < 110) return; testo(M + 4, y, '•  ' + d.nome, 10.5); y -= 15; });
     }
     // note
-    const note = [(p.tipo === 'pra' ? 'Prezzi per pasto consegnato. ' : '') + 'Preventivo valido ' + (+p.validita || 30) + ' giorni dalla data di emissione.'];
+    const note = [(p.tipo === 'pra' ? 'Prezzi per pasto consegnato. ' : '') + 'Proposta valida ' + (+p.validita || 30) + ' giorni dalla data di emissione.'];
     if (etich(p, null).note) note.unshift(etich(p, null).note);
     let yn = 92; linea(yn + 14);
     note.forEach(n => spezza(n, 9, W - 2 * M, false).forEach(rg => { testo(M, yn, rg, 9, false, [90, 100, 115]); yn -= 12; }));
@@ -988,7 +989,7 @@
     return new Blob(parti, { type: 'application/pdf' });
   }
   async function pdfPrev(p) {
-    const blob = await creaPdf(p), nome = 'Preventivo' + (p.cliente ? ' ' + p.cliente.replace(/[^\wÀ-ÿ ]/g, '').trim() : '') + '.pdf';
+    const blob = await creaPdf(p), nome = 'Proposta' + (p.cliente ? ' ' + p.cliente.replace(/[^\wÀ-ÿ ]/g, '').trim() : '') + '.pdf';
     const file = new File([blob], nome, { type: 'application/pdf' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: nome }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nome; document.body.appendChild(a); a.click(); a.remove();
@@ -1018,7 +1019,7 @@
       : '<p class="piccolo" style="margin:0 0 8px">Collega questo telefono al negozio, così Anita e Alessia vedono le stesse cose. Si usa la stessa email e la stessa password di Magazzino (' + esc(SYNC_CONF.email) + '). Si scrive una volta sola su ogni telefono; serve internet.</p><label class="campo largo"><span>Password del negozio</span><input id="sy-pw" type="password" autocomplete="current-password"></label><button class="btn primario" data-act="sync-collega">Collega questo telefono</button>') + '</div>';
     html += '<div class="sezione">Magazzino</div><div class="gruppo"><p class="piccolo" style="margin:0">' + (syAttiva() ? 'I prodotti e i prezzi si leggono dal Magazzino e si aggiornano da soli.' : 'Collega il telefono qui sopra e i prodotti e i prezzi del Magazzino arrivano da soli.') + '</p><a class="btn" href="' + MAG_URL + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none">Apri Magazzino</a></div>';
     html += '<div class="sezione">Copia di sicurezza</div><div class="gruppo"><button class="btn" data-act="backup">Salva backup</button><button class="btn" data-act="ripristina">Carica un backup</button><button class="btn pericolo" data-act="ripristina-compiti">Rimetti i compiti iniziali</button></div>';
-    html += '<p class="piccolo" style="margin-top:18px">Lavoro 2.2.1 · i dati restano su questo telefono.</p>';
+    html += '<p class="piccolo" style="margin-top:18px">Lavoro 2.2.2 · i dati restano su questo telefono.</p>';
     return html;
   }
 

@@ -4,7 +4,7 @@ App per il negozio: compiti e orari di Anita e Alessia, preventivi con margine. 
 
 - **Oggi** e **Settimana**: compiti e orari di Anita e Alessia, con spunta, "Adesso" e "In ritardo".
 - **Prepara** (la imposta Anita, una volta sola): 1 prodotti e prezzi (dal backup del Magazzino o a mano), 2 piatti con gli ingredienti a persona, 3 menu, 4 servizio (personale, allestimento, extra).
-- **Preventivi**: catering ed eventi, pranzi aziendali (più giorni, pasti al giorno, settimane), bomboniere e ceste. L'app calcola ingredienti, personale, allestimento ed extra e propone i prezzi; il cliente vede due voci (menu e servizio) o un solo prezzo a persona. Margine visibile solo a chi prepara. "Accettato" crea i compiti.
+- **Preventivi**: eventi e cene, pranzi aziendali (più giorni, pasti al giorno, settimane), bomboniere e ceste. L'app calcola ingredienti, personale, allestimento ed extra e propone i prezzi; il cliente vede due voci (menu e servizio) o un solo prezzo a persona. Margine visibile solo a chi prepara. "Accettato" crea i compiti.
 - **PDF**: in ogni preventivo "Crea PDF" con intestazione (logo, indirizzo, email, P.IVA e PEC del negozio già inseriti e telefono già inseriti) e lo si invia direttamente da WhatsApp o Mail.
 - **Più telefoni insieme** (Altro): si collega ogni telefono con la password di Magazzino; compiti, spunte, piatti, menu, preventivi e impostazioni diventano uguali ovunque. Senza internet si lavora lo stesso e si sincronizza dopo.
 - **Altro**: chi usa il telefono, costo orario e ricarico, avvisi 10 minuti prima (app aperta), backup.
@@ -34,3 +34,6 @@ Grafica più vicina a Magazzino (fascia scura in alto, schede e pulsanti più gr
 
 ## 2.2.0
 Lavoro legge i prodotti e i prezzi direttamente dal Magazzino (stessa base dati, sola lettura), senza più caricare il backup: nuovi prodotti, prezzi cambiati e prodotti tolti arrivano da soli. Collegamento "Apri Magazzino" in Prodotti e in Altro. Il backup resta come ripiego.
+
+## 2.2.2
+Tolto "catering" dai testi (ora "Eventi e cene"). Nome nell'intestazione: "La Spesa Sfusa di Anita Mancini". Nel PDF il documento si chiama "Proposta" (nell'app resta "Preventivo").
