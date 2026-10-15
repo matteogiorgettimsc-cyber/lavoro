@@ -28,3 +28,6 @@ Preventivo semplificato: una sola schermata a domande ("Per chi e quando?", "Cos
 
 ## 2.0.0
 Nuovo aspetto "Bottega": verde bottiglia, carta di sacco, titoli con caratteri da insegna, cartellini tratteggiati. Funzioni e schermate invariate.
+
+## 2.1.0
+Grafica più vicina a Magazzino (fascia scura in alto, schede e pulsanti più grandi) con toni più scuri. Nuova icona: le due S del logo su verde scuro con il sole.
