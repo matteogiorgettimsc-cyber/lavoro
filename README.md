@@ -31,3 +31,6 @@ Nuovo aspetto "Bottega": verde bottiglia, carta di sacco, titoli con caratteri d
 
 ## 2.1.0
 Grafica più vicina a Magazzino (fascia scura in alto, schede e pulsanti più grandi) con toni più scuri. Nuova icona: le due S del logo su verde scuro con il sole.
+
+## 2.2.0
+Lavoro legge i prodotti e i prezzi direttamente dal Magazzino (stessa base dati, sola lettura), senza più caricare il backup: nuovi prodotti, prezzi cambiati e prodotti tolti arrivano da soli. Collegamento "Apri Magazzino" in Prodotti e in Altro. Il backup resta come ripiego.

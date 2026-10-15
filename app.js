@@ -97,7 +97,7 @@
      - la password si scrive una volta sola su ogni telefono e non finisce nel backup
      ========================================================= */
   const SYNC_CONF = { apiKey: 'AIzaSyBj_vigsG7m3jQg3MaRSBTwoKkXcPB3HKk', projectId: 'magazzino-spesa-sfusa-69c90', email: 'laspesasfusa@gmail.com' };
-  const SYKEY = 'lavoro-sync-v1';
+  const SYKEY = 'lavoro-sync-v1', MAG_URL = 'https://matteogiorgettimsc-cyber.github.io/magazzino/';
   let SY = (() => { try { const o = JSON.parse(localStorage.getItem(SYKEY)); if (o && o.rec) return o; } catch (e) { } return { auth: null, da: null, rec: {} }; })();
   const sySalva = () => { try { localStorage.setItem(SYKEY, JSON.stringify(SY)); } catch (e) { } };
   const SYS = { stato: 'spento', msg: '', ultimo: null, corre: false, ancora: false, timer: null, presto: null, ridisegna: false };
@@ -108,7 +108,7 @@
     const m = new Map();
     const arr = (nome, lista) => (lista || []).forEach(x => { if (x && x.id != null) m.set(nome + '~' + x.id, x); });
     arr('compiti', D.compiti); arr('piatti', D.piatti); arr('menu', D.menu); arr('preventivi', D.preventivi);
-    arr('prodotti', (D.prodotti || []).filter(p => p.origine !== 'esempio'));
+    arr('prodotti', (D.prodotti || []).filter(p => p.origine !== 'esempio' && p.origine !== 'magazzino'));
     Object.keys(D.fatti || {}).forEach(k => { if (D.fatti[k]) m.set('fatti~' + k, true); });
     m.set('cfg~azienda', D.azienda); m.set('cfg~servizio', D.servizio); m.set('cfg~pesi', D.pesi);
     m.set('cfg~prezzi', { ricarico: D.ricarico, basePrezzo: D.basePrezzo });
@@ -118,7 +118,7 @@
     const i = key.indexOf('~'), tipo = key.slice(0, i), id = key.slice(i + 1);
     if (['compiti', 'piatti', 'menu', 'preventivi', 'prodotti'].indexOf(tipo) > -1) {
       D[tipo] = (D[tipo] || []).filter(x => String(x.id) !== id);
-      if (!del && val) D[tipo].push(val);
+      if (!del && val && !(tipo === 'prodotti' && val.origine === 'magazzino')) D[tipo].push(val);
     } else if (tipo === 'fatti') { if (del) delete D.fatti[id]; else D.fatti[id] = true; }
     else if (key === 'cfg~azienda' && val) D.azienda = Object.assign(D.azienda, val);
     else if (key === 'cfg~servizio' && val) D.servizio = val;
@@ -207,6 +207,40 @@
     sySalva();
     return n;
   }
+  async function syMagazzino() {   // legge i prodotti direttamente dal Magazzino (stessa base dati, sola lettura)
+    const LIM = 300, prima = !SY.md, da = SY.md ? new Date(Date.parse(SY.md) - 15000).toISOString() : null;
+    let cursore = null, max = SY.md || null, trovati = new Map();
+    for (;;) {
+      const filtro = prima ? { fieldFilter: { field: { fieldPath: 'st' }, op: 'EQUAL', value: { stringValue: 'prodotti' } } }
+        : { fieldFilter: { field: { fieldPath: 'srv' }, op: 'GREATER_THAN_OR_EQUAL', value: { timestampValue: da } } };
+      const q = { from: [{ collectionId: 'dati' }], where: filtro, limit: LIM };
+      q.orderBy = prima ? [{ field: { fieldPath: '__name__' }, direction: 'ASCENDING' }] : [{ field: { fieldPath: 'srv' }, direction: 'ASCENDING' }, { field: { fieldPath: '__name__' }, direction: 'ASCENDING' }];
+      if (cursore) q.startAt = { values: prima ? [{ referenceValue: cursore.name }] : [{ timestampValue: cursore.srv }, { referenceValue: cursore.name }], before: false };
+      const docs = ((await syFs(':runQuery', { structuredQuery: q })) || []).filter(x => x.document).map(x => x.document);
+      docs.forEach(d => {
+        const f = d.fields || {}, srv = f.srv && f.srv.timestampValue;
+        if (srv && (!max || Date.parse(srv) > Date.parse(max))) max = srv;
+        if (!(f.st && f.st.stringValue === 'prodotti')) return;
+        const rec = {}; Object.keys(f).forEach(k => { if (k.indexOf('f_') === 0 && f[k].stringValue != null) { try { rec[k.slice(2)] = JSON.parse(f[k].stringValue); } catch (e) { } } });
+        const id = rec.id !== undefined ? rec.id : (f.rid && f.rid.stringValue);
+        if (id == null) return;
+        trovati.set(String(id), (f.del && f.del.booleanValue) || !rec.nome ? null : Object.assign(rec, { id }));
+      });
+      if (docs.length < LIM) break;
+      const ul = docs[docs.length - 1]; cursore = { srv: ul.fields.srv && ul.fields.srv.timestampValue, name: ul.name };
+    }
+    let n = 0;
+    if (prima) { const ids = new Set([...trovati.keys()].map(k => 'm_' + k)); const prec = D.prodotti.length; D.prodotti = D.prodotti.filter(p => p.origine !== 'magazzino' || ids.has(p.id)); n += prec - D.prodotti.length; }
+    trovati.forEach((rec, id) => {
+      const pid = 'm_' + id, i = D.prodotti.findIndex(p => p.id === pid);
+      if (!rec) { if (i > -1) { D.prodotti.splice(i, 1); n++; } return; }
+      const nuovo = daMagazzino(rec);
+      if (i > -1) { if (JSON.stringify(D.prodotti[i]) !== JSON.stringify(nuovo)) { D.prodotti[i] = nuovo; n++; } } else { D.prodotti.push(nuovo); n++; }
+    });
+    SY.md = max || SY.md || new Date().toISOString(); sySalva();
+    if (n) { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) { } }
+    return n;
+  }
   async function syGiro() {
     if (!syAttiva()) return;
     if (SYS.corre) { SYS.ancora = true; return; }
@@ -221,6 +255,7 @@
         syRileva();
         n += await syRicevi();
         await syInvia();
+        n += await syMagazzino();               // i prodotti e i prezzi arrivano dal Magazzino
         SYS.stato = 'ok'; SYS.msg = ''; SYS.ultimo = Date.now();
         if (n) syVista();
       } while (SYS.ancora && ++volte < 3);
@@ -304,6 +339,12 @@
   const prodotto = id => D.prodotti.find(p => p.id === id);
   const piatto = id => D.piatti.find(p => p.id === id);
   const menuDi = p => D.menu.find(m => m.id === p.menuId);
+  function daMagazzino(x) {   // un prodotto di Magazzino diventa un prodotto di Lavoro
+    const sf = !!x.sfuso, tipo = sf ? (x.unita === 'l' ? 'l' : 'kg') : 'pz';
+    const iva = x.iva == null ? null : +x.iva, acq = x.prezzoAcquisto == null ? null : +x.prezzoAcquisto, ric = x.ricarico || 50;
+    const ven = x.prezzoManuale != null ? +x.prezzoManuale : (acq != null && iva != null ? Math.ceil(acq * (1 + ric / 100) * (1 + iva / 100) * 10 - 1e-9) / 10 : null);
+    return { id: 'm_' + x.id, nome: x.nome, tipo, acq, iva, ven, conf: sf ? null : (D.pesi['m_' + x.id] || parseFormato(x.formato) || parseFormato(x.nome)), origine: 'magazzino', cat: x.categoria || '' };
+  }
   function parseFormato(s) {
     const m = /(\d+(?:[.,]\d+)?)\s*(kg|gr|g|lt|l|ml|cl)\b/i.exec(String(s || ''));
     if (!m) return null;
@@ -538,8 +579,11 @@
   }
   function viewProdotti() {
     let html = indietro('#prepara', 'Prepara') + testata('Prodotti e prezzi', 'I prezzi che contano per i preventivi.');
-    html += '<p class="piccolo" style="margin-top:0">I prodotti del Magazzino si caricano dal suo backup (Magazzino → Impostazioni → Fai backup). Quelli che non ci sono, come la verdura del mercato, si aggiungono a mano.</p>';
-    html += '<div class="azioni" style="margin:0 0 12px"><button class="btn primario" data-act="carica-magazzino">Carica il backup del Magazzino</button><button class="btn" data-act="nuovo-prodotto">Aggiungi a mano</button></div>';
+    const nMag = D.prodotti.filter(p => p.origine === 'magazzino').length;
+    if (syAttiva()) html += '<div class="stato ok" style="margin:0 0 12px"><b>Collegato al Magazzino.</b> ' + (nMag ? (nMag === 1 ? '1 prodotto' : nMag + ' prodotti') + ', prezzi compresi, si aggiornano da soli.' : 'I prodotti arrivano tra poco.') + '<div class="piccolo" id="syStato" style="margin-top:4px">' + esc(syTesto()) + '</div></div>' +
+      '<div class="azioni" style="margin:0 0 12px"><button class="btn primario" data-act="sync-ora">Aggiorna ora</button><button class="btn" data-act="nuovo-prodotto">Aggiungi a mano</button><a class="btn" href="' + MAG_URL + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none">Apri Magazzino</a></div>';
+    else html += '<div class="stato avviso" style="margin:0 0 12px">Per avere qui i prodotti e i prezzi del Magazzino, collega questo telefono in <a href="#impostazioni"><b>Altro</b></a>: poi si aggiornano da soli. Quelli che non ci sono, come la verdura del mercato, si aggiungono a mano.</div>' +
+      '<div class="azioni" style="margin:0 0 12px"><button class="btn" data-act="carica-magazzino">Carica un backup del Magazzino</button><button class="btn" data-act="nuovo-prodotto">Aggiungi a mano</button></div>';
     html += '<label class="campo" style="margin-bottom:12px"><span>Cerca</span><input id="q-prod" type="search" value="' + esc(S.q) + '" autocomplete="off" placeholder="Nome del prodotto"></label>';
     html += '<div id="lista-prod">' + elencoProdotti() + '</div>';
     return html;
@@ -972,8 +1016,9 @@
     html += '<div class="sezione">Più telefoni insieme</div><div class="gruppo">' + (syAttiva()
       ? '<p class="piccolo" style="margin:0 0 8px">Questo telefono è collegato: compiti, spunte, piatti, menu e preventivi sono uguali su tutti i telefoni collegati.</p><p class="piccolo" id="syStato" style="margin:0 0 10px">' + esc(syTesto()) + '</p><button class="btn" data-act="sync-ora">Sincronizza ora</button><button class="btn" data-act="sync-scollega">Scollega questo telefono</button>'
       : '<p class="piccolo" style="margin:0 0 8px">Collega questo telefono al negozio, così Anita e Alessia vedono le stesse cose. Si usa la stessa email e la stessa password di Magazzino (' + esc(SYNC_CONF.email) + '). Si scrive una volta sola su ogni telefono; serve internet.</p><label class="campo largo"><span>Password del negozio</span><input id="sy-pw" type="password" autocomplete="current-password"></label><button class="btn primario" data-act="sync-collega">Collega questo telefono</button>') + '</div>';
+    html += '<div class="sezione">Magazzino</div><div class="gruppo"><p class="piccolo" style="margin:0">' + (syAttiva() ? 'I prodotti e i prezzi si leggono dal Magazzino e si aggiornano da soli.' : 'Collega il telefono qui sopra e i prodotti e i prezzi del Magazzino arrivano da soli.') + '</p><a class="btn" href="' + MAG_URL + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none">Apri Magazzino</a></div>';
     html += '<div class="sezione">Copia di sicurezza</div><div class="gruppo"><button class="btn" data-act="backup">Salva backup</button><button class="btn" data-act="ripristina">Carica un backup</button><button class="btn pericolo" data-act="ripristina-compiti">Rimetti i compiti iniziali</button></div>';
-    html += '<p class="piccolo" style="margin-top:18px">Lavoro 2.1.0 · i dati restano su questo telefono.</p>';
+    html += '<p class="piccolo" style="margin-top:18px">Lavoro 2.2.0 · i dati restano su questo telefono.</p>';
     return html;
   }
 
@@ -1320,12 +1365,7 @@
         const o = JSON.parse(r.result);
         if (modo === 'magazzino') {
           if (!o || o.app !== 'spesasfusa-magazzino' || !Array.isArray(o.prodotti)) throw new Error('Questo file non è un backup del Magazzino');
-          const nuovi = o.prodotti.map(x => {
-            const sf = !!x.sfuso, tipo = sf ? (x.unita === 'l' ? 'l' : 'kg') : 'pz';
-            const iva = x.iva == null ? null : +x.iva, acq = x.prezzoAcquisto == null ? null : +x.prezzoAcquisto, ric = x.ricarico || 50;
-            const ven = x.prezzoManuale != null ? +x.prezzoManuale : (acq != null && iva != null ? Math.ceil(acq * (1 + ric / 100) * (1 + iva / 100) * 10 - 1e-9) / 10 : null);
-            return { id: 'm_' + x.id, nome: x.nome, tipo, acq, iva, ven, conf: sf ? null : (D.pesi['m_' + x.id] || parseFormato(x.formato) || parseFormato(x.nome)), origine: 'magazzino', cat: x.categoria || '' };
-          });
+          const nuovi = o.prodotti.map(daMagazzino);
           D.prodotti = D.prodotti.filter(p => p.origine !== 'magazzino').concat(nuovi); salva(); render();
           toast(nuovi.length + ' prodotti caricati dal Magazzino');
         } else {
