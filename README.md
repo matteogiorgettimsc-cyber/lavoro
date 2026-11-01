@@ -3,6 +3,7 @@
 App per il negozio: compiti e orari di Anita e Alessia, preventivi con margine. Si installa sul telefono come Magazzino e funziona anche senza internet.
 
 - **Oggi** e **Settimana**: compiti e orari di Anita e Alessia, con spunta, "Adesso" e "In ritardo".
+- **Obiettivi**: il piano del mese (abitudini di ogni giorno e traguardi per settimana) con i numeri che arrivano da soli dal Magazzino: incasso medio al giorno, differenza tra cassa e scansionato, prodotti senza prezzo d'acquisto o IVA. In Oggi un riquadro ricorda l'obiettivo della settimana.
 - **Prepara** (la imposta Anita, una volta sola): 1 prodotti e prezzi (dal backup del Magazzino o a mano), 2 piatti con gli ingredienti a persona, 3 menu, 4 servizio (personale, allestimento, extra).
 - **Preventivi**: eventi e cene, pranzi aziendali (più giorni, pasti al giorno, settimane), bomboniere e ceste. L'app calcola ingredienti, personale, allestimento ed extra e propone i prezzi; il cliente vede due voci (menu e servizio) o un solo prezzo a persona. Margine visibile solo a chi prepara. "Accettato" crea i compiti.
 - **PDF**: in ogni preventivo "Crea PDF" con intestazione (logo, indirizzo, email, P.IVA e PEC del negozio già inseriti e telefono già inseriti) e lo si invia direttamente da WhatsApp o Mail.
@@ -37,3 +38,7 @@ Lavoro legge i prodotti e i prezzi direttamente dal Magazzino (stessa base dati,
 
 ## 2.2.2
 Tolto "catering" dai testi (ora "Eventi e cene"). Nome nell'intestazione: "La Spesa Sfusa di Anita Mancini". Nel PDF il documento si chiama "Proposta" (nell'app resta "Preventivo").
+
+## 2.3.0
+Nuova sezione **Obiettivi** (nella barra in basso) con il piano di novembre 2026: tre abitudini di ogni giorno e un traguardo per settimana. I numeri arrivano dal Magazzino, in sola lettura: chiusure della sera (incasso, scansionato, differenza calcolata come nella chiusura di Magazzino) e prodotti senza prezzo d'acquisto o IVA, con l'elenco di quelli da completare. In Oggi un riquadro ricorda l'obiettivo della settimana.
+Compiti di novembre, aggiunti una volta sola su ogni telefono (un compito tolto su un altro telefono non torna): «Carica i prodotti mancanti» (Alessia, 18–19), costi fissi (gio 5), catalogo completo (sab 14), prezzi di olio, aceto e condimenti (gio 19), riepilogo di novembre (lun 30). «Lista di domani» passa alle 19; nuova nota della Chiusura; sul banco di Alessia il promemoria «ogni vendita battuta in cassa e scansionata». I compiti cambiati a mano non vengono toccati.

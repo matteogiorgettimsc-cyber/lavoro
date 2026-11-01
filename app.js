@@ -11,6 +11,9 @@
   const NOME = { m: 'Anita', a: 'Alessia' };
   const EUR = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
   const TUTTI = [1, 2, 3, 4, 5, 6];
+  const VENDITA = 'Ogni vendita: battuta in cassa e scansionata in Magazzino';
+  const NOTA_CHIUSURA = 'Chiusura di oggi in Magazzino: se dice «da controllare» cerca il motivo. Foto della chiusura di cassa a Matteo. Scadenze e cosa manca per domani';
+  const EUR0 = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
   const SVG_OK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const TIPI_PIATTO = [['antipasto', 'Antipasti'], ['primo', 'Primi'], ['secondo', 'Secondi'], ['contorno', 'Contorni'], ['dolce', 'Dolci'], ['altro', 'Altro']];
   const BASI = [['acq', 'Prezzo d\'acquisto, IVA esclusa'], ['acqiva', 'Prezzo d\'acquisto, IVA inclusa'], ['ven', 'Prezzo di vendita nel negozio']];
@@ -39,7 +42,7 @@
         c('cuc', '09:30', '12:15', 'Cucina i pasti per la fabbrica', ['m'], TUTTI, 'Menu e quantità del giorno'),
         c('ban', '09:30', '10:30', 'Banco e verdura fresca', ['a'], TUTTI, 'Sistema la verdura appena arriva'),
         c('sca', '10:30', '11:00', 'Controllo scadenze', ['a'], TUTTI, 'Dall\'app Magazzino: prodotti che scadono presto'),
-        c('ban2', '11:00', '12:15', 'Banco e clienti', ['a'], TUTTI),
+        c('ban2', '11:00', '12:15', 'Banco e clienti', ['a'], TUTTI, VENDITA),
         c('imp', '12:15', '12:45', 'Impacchetta i pasti', ['m', 'a'], TUTTI, 'Carica tutto per la consegna'),
         c('con', '12:45', '13:00', 'Consegna in fabbrica', ['a'], TUTTI, 'Parte alle 12:45 per essere lì alle 13'),
         c('bam', '12:45', '13:00', 'Banco da sola fino alla chiusura', ['m'], TUTTI, 'Alessia è in consegna'),
@@ -48,11 +51,11 @@
         c('pre', '15:30', '17:00', 'Preventivi', ['m'], [2, 5], 'Eventi, pranzi aziendali, ceste'),
         c('pan', '15:30', '17:00', 'Pane e dolci per domani', ['m'], [3]),
         c('cnt', '15:30', '17:00', 'Contabilità', ['m'], [4]),
-        c('sbn', '17:00', '18:00', 'Banco e clienti', ['a'], TUTTI),
+        c('sbn', '17:00', '18:00', 'Banco e clienti', ['a'], TUTTI, VENDITA),
         c('m17', '17:00', '20:00', 'Compito del giorno, poi il banco', ['m'], TUTTI, 'Lo stesso compito fisso del pomeriggio, se non finito'),
-        c('lis', '18:00', '19:30', 'Lista di domani e preventivi nell\'app', ['a'], TUTTI, 'Ingredienti da ordinare, bozze da inserire'),
-        c('ban3', '19:30', '20:00', 'Banco e clienti', ['a'], TUTTI),
-        c('chi', '20:00', '20:30', 'Chiusura', ['m', 'a'], TUTTI, 'Cassa, scadenze del giorno, cosa manca per domani')
+        c('lis', '19:00', '19:30', 'Lista di domani e preventivi nell\'app', ['a'], TUTTI, 'Ingredienti da ordinare, bozze da inserire'),
+        c('ban3', '19:30', '20:00', 'Banco e clienti', ['a'], TUTTI, VENDITA),
+        c('chi', '20:00', '20:30', 'Chiusura', ['m', 'a'], TUTTI, NOTA_CHIUSURA)
       ]
     };
   }
@@ -208,9 +211,30 @@
     sySalva();
     return n;
   }
-  async function syMagazzino() {   // legge i prodotti direttamente dal Magazzino (stessa base dati, sola lettura)
+  function leggiCampi(f) { const rec = {}; Object.keys(f).forEach(k => { if (k.indexOf('f_') === 0 && f[k].stringValue != null) { try { rec[k.slice(2)] = JSON.parse(f[k].stringValue); } catch (e) { } } }); return rec; }
+  function syChiusura(f) {   // una chiusura di cassa del Magazzino: si tengono solo i numeri che servono agli Obiettivi
+    const rec = leggiCampi(f), id = String(rec.id !== undefined ? rec.id : (f.rid && f.rid.stringValue));
+    if (!SY.ch) SY.ch = {};
+    if ((f.del && f.del.booleanValue) || !rec.data) { if (SY.ch[id]) { delete SY.ch[id]; return 1; } return 0; }
+    const v = { data: rec.data, incasso: +rec.incasso || 0, frutta: rec.frutta == null ? null : +rec.frutta, scansionato: +rec.scansionato || 0, differenza: rec.differenza == null ? null : +rec.differenza };
+    if (JSON.stringify(SY.ch[id] || null) === JSON.stringify(v)) return 0;
+    SY.ch[id] = v; return 1;
+  }
+  async function syTutteChiusure() {   // la prima volta: tutte le chiusure; dopo arrivano con le altre modifiche del Magazzino
+    const LIM = 300; let cursore = null, n = 0;
+    for (;;) {
+      const q = { from: [{ collectionId: 'dati' }], where: { fieldFilter: { field: { fieldPath: 'st' }, op: 'EQUAL', value: { stringValue: 'chiusure' } } }, orderBy: [{ field: { fieldPath: '__name__' }, direction: 'ASCENDING' }], limit: LIM };
+      if (cursore) q.startAt = { values: [{ referenceValue: cursore }], before: false };
+      const docs = ((await syFs(':runQuery', { structuredQuery: q })) || []).filter(x => x.document).map(x => x.document);
+      docs.forEach(d => { n += syChiusura(d.fields || {}); });
+      if (docs.length < LIM) break;
+      cursore = docs[docs.length - 1].name;
+    }
+    SY.mc = 1; return n;
+  }
+  async function syMagazzino() {   // legge prodotti e chiusure di cassa direttamente dal Magazzino (stessa base dati, sola lettura)
     const LIM = 300, prima = !SY.md, da = SY.md ? new Date(Date.parse(SY.md) - 15000).toISOString() : null;
-    let cursore = null, max = SY.md || null, trovati = new Map();
+    let cursore = null, max = SY.md || null, trovati = new Map(), nc = 0;
     for (;;) {
       const filtro = prima ? { fieldFilter: { field: { fieldPath: 'st' }, op: 'EQUAL', value: { stringValue: 'prodotti' } } }
         : { fieldFilter: { field: { fieldPath: 'srv' }, op: 'GREATER_THAN_OR_EQUAL', value: { timestampValue: da } } };
@@ -221,8 +245,9 @@
       docs.forEach(d => {
         const f = d.fields || {}, srv = f.srv && f.srv.timestampValue;
         if (srv && (!max || Date.parse(srv) > Date.parse(max))) max = srv;
+        if (f.st && f.st.stringValue === 'chiusure') { nc += syChiusura(f); return; }
         if (!(f.st && f.st.stringValue === 'prodotti')) return;
-        const rec = {}; Object.keys(f).forEach(k => { if (k.indexOf('f_') === 0 && f[k].stringValue != null) { try { rec[k.slice(2)] = JSON.parse(f[k].stringValue); } catch (e) { } } });
+        const rec = leggiCampi(f);
         const id = rec.id !== undefined ? rec.id : (f.rid && f.rid.stringValue);
         if (id == null) return;
         trovati.set(String(id), (f.del && f.del.booleanValue) || !rec.nome ? null : Object.assign(rec, { id }));
@@ -238,9 +263,10 @@
       const nuovo = daMagazzino(rec);
       if (i > -1) { if (JSON.stringify(D.prodotti[i]) !== JSON.stringify(nuovo)) { D.prodotti[i] = nuovo; n++; } } else { D.prodotti.push(nuovo); n++; }
     });
+    if (!SY.mc) nc += await syTutteChiusure();
     SY.md = max || SY.md || new Date().toISOString(); sySalva();
     if (n) { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) { } }
-    return n;
+    return n + nc;
   }
   async function syGiro() {
     if (!syAttiva()) return;
@@ -496,6 +522,7 @@
     html += '<div class="kpi"><div><b>' + nF + '/' + lista.length + '</b><span>fatte</span></div>' +
       '<div><b>' + (prossimo ? prossimo.da : '–') + '</b><span>prossimo</span></div>' +
       '<div class="' + (ritardo ? 'rosso' : '') + '"><b>' + ritardo + '</b><span>in ritardo</span></div></div>';
+    html += bannerObiettivi();
     const aggiungi = '<div class="azioni"><button class="btn" data-act="nuovo-oggi">+ Aggiungi un lavoro per oggi</button></div>';
     if (!lista.length) return html + '<div class="vuoto">Nessun compito per oggi.</div>' + aggiungi;
     html += '<ul class="tempo">';
@@ -526,6 +553,142 @@
       html += '<button class="riga" data-act="apri-compito" data-id="' + esc(t.id) + '"><span class="ora">' + esc(t.da) + '<br><span class="chi">' + esc(t.a) + '</span></span><span><b>' + esc(t.t) + '</b>' + (t.data ? '<br><span class="chi">Una volta sola · ' + esc(dataBreve(t.data)) + '</span>' : '') + '</span><span class="chi">' + esc(chiTesto(t.chi)) + '</span></button>';
     });
     html += '<div class="azioni"><button class="btn primario" data-act="nuovo-compito">Nuovo compito</button></div>';
+    return html;
+  }
+
+  /* =========================================================
+     Obiettivi del mese (dalla 2.3.0)
+     - il piano del mese è scritto qui; i numeri arrivano da soli dal Magazzino:
+       chiusure della sera (incasso, scansionato, differenza) e prodotti (prezzo d'acquisto e IVA)
+     - la differenza si conta come nella chiusura di Magazzino: scansionato meno incasso
+       (tolta la frutta non scansionata), in percentuale dell'incasso; sotto il 2% «va bene»
+     ========================================================= */
+  const PIANI = {
+    '2026-11': {
+      incasso: 5000,
+      abitudini: [
+        ['Ogni vendita', 'battuta in cassa e scansionata in Magazzino. Anche pane, dolci, frutta e verdura.'],
+        ['Alessia, dalle 18 alle 19', 'carica i prodotti che mancano, con prezzo d\'acquisto e IVA.'],
+        ['Alla chiusura', '«Chiusura di oggi» in Magazzino: se dice «da controllare» cerca il motivo. Foto della chiusura di cassa a Matteo.']
+      ],
+      settimane: [
+        { da: '2026-11-02', a: '2026-11-07', diff: 50, passi: [{ id: 'n26-costi', data: '2026-11-05', chi: 'm', t: 'Costi fissi a Matteo' }] },
+        { da: '2026-11-09', a: '2026-11-14', diff: 30, catalogo: '2026-11-14' },
+        { da: '2026-11-16', a: '2026-11-21', diff: 10, passi: [{ id: 'n26-olio', data: '2026-11-19', chi: 'm', t: 'Prezzi di olio, aceto e condimenti' }] },
+        { da: '2026-11-23', a: '2026-11-28', diff: 2, ogniSera: true },
+        { da: '2026-11-30', a: '2026-11-30', passi: [{ id: 'n26-riep', data: '2026-11-30', chi: 'a', t: 'Riepilogo di novembre a Matteo' }] }
+      ]
+    }
+  };
+  const pianoDi = d0 => PIANI[d0.slice(0, 7)] || null;
+  const settimanaDi = (P, d0) => P.settimane.find(w => d0 <= w.a) || null;   // quella in corso o la prossima
+  function giorniApertura(da, a) {   // dal lunedì al sabato, estremi compresi
+    let n = 0;
+    for (let d = daIso(da); iso(d) <= a; d = addDays(d, 1)) if (d.getDay() >= 1 && d.getDay() <= 6) n++;
+    return n;
+  }
+  const fineMese = d0 => { const d = daIso(d0.slice(0, 7) + '-01'); d.setMonth(d.getMonth() + 1); d.setDate(0); return iso(d); };
+  const chiusureTra = (da, a) => Object.values(SY.ch || {}).filter(c => c.data >= da && c.data <= a).sort((x, y) => x.data.localeCompare(y.data));
+  function scarto(c) {
+    const conf = (+c.incasso || 0) - (+c.frutta || 0), diff = c.differenza != null ? +c.differenza : (+c.scansionato || 0) - conf;
+    const pct = conf > 0 ? Math.abs(diff) / conf * 100 : null;
+    return { conf, diff, pct, ok: Math.abs(diff) < 0.005 || (pct != null && pct < 2) };
+  }
+  function scartoInsieme(lista) {   // la differenza di più sere insieme, in % dell'incasso
+    let conf = 0, ass = 0; lista.forEach(c => { const s = scarto(c); conf += s.conf; ass += Math.abs(s.diff); });
+    return conf > 0 ? ass / conf * 100 : null;
+  }
+  function giorniTrascorsi(da, a, d0, chiuse) {   // giorni di apertura già finiti (oggi conta solo se è già chiuso)
+    const ieri = iso(addDays(daIso(d0), -1)), fino = a < ieri ? a : ieri;
+    let n = fino >= da ? giorniApertura(da, fino) : 0;
+    if (d0 >= da && d0 <= a && chiuse.some(c => c.data === d0)) n++;
+    return n;
+  }
+  function statoCatalogo() {
+    const mg = D.prodotti.filter(p => p.origine === 'magazzino'), inc = mg.filter(p => p.acq == null || p.iva == null);
+    return { tot: mg.length, incompleti: inc.length, senzaAcq: mg.filter(p => p.acq == null).length, senzaIva: mg.filter(p => p.iva == null).length,
+      nomi: inc.map(p => p.nome).sort((a, b) => a.localeCompare(b, 'it')) };
+  }
+  function obiettivoSett(w) {
+    if (w.ogniSera) return 'ogni sera «va bene» nella chiusura';
+    if (w.diff != null) return 'differenza della sera sotto il ' + w.diff + '%' + (w.catalogo ? ' e catalogo completo entro ' + dataBreve(w.catalogo) : '');
+    return (w.passi || []).map(p => p.t.charAt(0).toLowerCase() + p.t.slice(1)).join(', ');
+  }
+  function vociSett(w, d0, cat) {   // ogni traguardo della settimana con il suo stato: ok, no, attesa
+    const voci = [], futura = d0 < w.da, passata = d0 > w.a, collegato = syAttiva();
+    if (w.diff != null) {
+      const ch = chiusureTra(w.da, w.a), giorni = giorniTrascorsi(w.da, w.a, d0, ch), conta = giorni ? ' · ' + ch.length + (ch.length === 1 ? ' chiusura' : ' chiusure') + ' su ' + giorni + (giorni === 1 ? ' giorno' : ' giorni') : '';
+      if (w.ogniSera) {
+        const ok = ch.filter(c => scarto(c).ok).length, tutte = ch.length > 0 && ok === ch.length && ch.length >= giorni;
+        voci.push({ s: futura ? 'attesa' : tutte ? 'ok' : passata ? 'no' : 'attesa', t: 'Ogni sera «va bene» (differenza sotto il 2%)', n: ch.length ? ok + (ok === 1 ? ' sera' : ' sere') + ' «va bene» su ' + ch.length + conta : (futura || !collegato ? '' : 'ancora nessuna chiusura') });
+      } else {
+        const pct = scartoInsieme(ch), sotto = pct != null && pct < w.diff;
+        voci.push({ s: futura ? 'attesa' : sotto ? 'ok' : passata ? 'no' : 'attesa', t: 'Differenza della sera sotto il ' + w.diff + '%', n: pct != null ? (passata ? 'è stata ' : 'ora ') + nf(pct, 0) + '%' + conta : (futura || !collegato ? '' : 'ancora nessuna chiusura') });
+      }
+    }
+    if (w.catalogo) {
+      const fatto = collegato && cat.tot > 0 && cat.incompleti === 0;
+      voci.push({ s: fatto ? 'ok' : collegato && cat.tot && d0 > w.catalogo ? 'no' : 'attesa', t: 'Catalogo completo entro ' + dataBreve(w.catalogo),
+        n: !collegato || !cat.tot ? 'si vede col telefono collegato' : cat.incompleti ? 'oggi mancano ' + cat.incompleti + (cat.incompleti === 1 ? ' prodotto' : ' prodotti') : 'tutti i prodotti hanno costo e IVA' });
+    }
+    (w.passi || []).forEach(p => {
+      const fatto = !!D.fatti[chiaveFatto(p.data, p.id, p.chi)];
+      voci.push({ s: fatto ? 'ok' : d0 > p.data ? 'no' : 'attesa', t: p.t, n: NOME[p.chi] + ' · ' + dataBreve(p.data) + (fatto ? ' · fatto' : d0 > p.data ? ' · non segnato' : '') });
+    });
+    return voci;
+  }
+  function bannerObiettivi() {
+    const ora = new Date(), d0 = iso(ora), P = pianoDi(d0), w = P && settimanaDi(P, d0);
+    if (!w) return '';
+    const ultima = w.diff != null && d0 >= w.da ? chiusureTra(w.da, d0).pop() : null, sc = ultima ? scarto(ultima) : null;
+    const nota = sc && sc.pct != null ? ' · ultima chiusura ' + nf(sc.pct, 0) + '%' : '';
+    return '<a class="obiettivo-link" href="#obiettivi"><span>Obiettivi di ' + esc(ora.toLocaleDateString('it-IT', { month: 'long' })) + '</span><b>' + esc((d0 < w.da ? cap(dataBreve(w.da)) : 'Questa settimana') + ': ' + obiettivoSett(w) + nota) + '</b><em class="freccia" aria-hidden="true">›</em></a>';
+  }
+  function viewObiettivi() {
+    const ora = new Date(), d0 = iso(ora), P = pianoDi(d0);
+    let html = testata('Obiettivi', cap(ora.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })), D.profilo ? '<span class="who">' + NOME[D.profilo] + '</span>' : '');
+    if (!P) return html + '<div class="vuoto">Per questo mese non ci sono obiettivi: li prepara Matteo.</div>';
+    const collegato = syAttiva(), cat = statoCatalogo(), w = settimanaDi(P, d0);
+    const inizio = d0.slice(0, 7) + '-01', fine = fineMese(d0), chiuse = chiusureTra(inizio, fine);
+    const giorniMese = giorniApertura(inizio, fine), alGiorno = P.incasso / giorniMese;
+    const tot = chiuse.reduce((s, c) => s + (+c.incasso || 0), 0), media = chiuse.length ? tot / chiuse.length : null;
+    const pctW = w && w.diff != null && d0 >= w.da ? scartoInsieme(chiusureTra(w.da, w.a)) : null;
+    const kpi = (v, et, ob, cl) => '<div class="' + (cl || '') + '"><b>' + esc(v) + '</b><span>' + esc(et) + '</span>' + (ob ? '<small>' + esc(ob) + '</small>' : '') + '</div>';
+    html += '<div class="kpi">' +
+      kpi(media == null ? '–' : EUR0.format(media), 'incasso al giorno', 'obiettivo ' + EUR0.format(alGiorno), media != null && media >= alGiorno ? 'verde' : '') +
+      kpi(pctW == null ? '–' : nf(pctW, 0) + '%', 'differenza', w && w.diff != null ? 'obiettivo sotto ' + w.diff + '%' : '', pctW != null && pctW < w.diff ? 'verde' : '') +
+      kpi(collegato && cat.tot ? String(cat.incompleti) : '–', 'da completare', 'obiettivo 0', collegato && cat.tot && !cat.incompleti ? 'verde' : '') + '</div>';
+    if (!collegato) html += '<div class="stato avviso" style="margin:0 0 14px">I numeri arrivano dal Magazzino: collega questo telefono in Altro, con la password di Magazzino.</div>';
+    if (w) html += '<p class="consiglio">' + esc((d0 < w.da ? cap(dataLunga(w.da)) : 'Questa settimana') + ': ' + obiettivoSett(w) + '.') + '</p>';
+
+    html += '<div class="sezione">Ogni giorno</div><ol class="abitudini">' + P.abitudini.map(x => '<li><div><b>' + esc(x[0]) + '</b> ' + esc(x[1]) + '</div></li>').join('') + '</ol>';
+
+    html += '<div class="sezione">Settimana per settimana</div>';
+    P.settimane.forEach((s, i) => {
+      const voci = vociSett(s, d0, cat), corrente = d0 >= s.da && d0 <= s.a;
+      const stato = d0 < s.da ? ['', 'Da fare'] : corrente ? ['adesso', 'In corso'] : voci.every(v => v.s === 'ok') ? ['ok', 'Raggiunto'] : ['no', 'Non del tutto'];
+      const titolo = s.da === s.a ? cap(dataBreve(s.da)) : 'Dal ' + daIso(s.da).getDate() + ' al ' + dataBreve(s.a).replace(/^\S+ /, '');
+      html += '<div class="sett' + (corrente ? ' corrente' : '') + '"><div class="sett-testa"><b>' + (i + 1) + ' · ' + esc(titolo) + '</b><span class="tag ' + stato[0] + '">' + stato[1] + '</span></div><ul>' +
+        voci.map(v => '<li class="' + v.s + '"><span class="ico" aria-hidden="true">' + (v.s === 'ok' ? '✓' : v.s === 'no' ? '✕' : '•') + '</span><span>' + esc(v.t) + (v.n ? '<br><span class="piccolo">' + esc(v.n) + '</span>' : '') + '</span></li>').join('') + '</ul></div>';
+    });
+
+    const giorniFatti = giorniTrascorsi(inizio, fine, d0, chiuse), restanti = Math.max(0, giorniMese - giorniFatti), manca = Math.max(0, P.incasso - tot);
+    html += '<div class="sezione">Incasso del mese</div><div class="pannello">' +
+      '<div class="r forte"><span>Incassato</span><span>' + EUR0.format(tot) + ' di ' + EUR0.format(P.incasso) + '</span></div>' +
+      '<div class="progresso" role="img" aria-label="' + nf(Math.min(100, tot / P.incasso * 100), 0) + '% dell\'obiettivo"><span style="width:' + Math.min(100, tot / P.incasso * 100).toFixed(1) + '%"></span></div>' +
+      riga('Media al giorno', media == null ? '–' : EUR0.format(media)) +
+      riga('Obiettivo al giorno', EUR0.format(alGiorno) + ' (' + giorniMese + ' giorni di apertura)') +
+      riga('Giorni con la chiusura', chiuse.length + ' su ' + giorniFatti) +
+      (restanti && manca ? riga('Servono nei giorni che restano', EUR0.format(manca / restanti) + ' al giorno per ' + restanti + (restanti === 1 ? ' giorno' : ' giorni')) : '') + '</div>';
+
+    html += '<div class="sezione">Catalogo</div><div class="pannello">';
+    if (collegato && cat.tot) {
+      html += '<div class="r forte"><span>Prodotti completi</span><span>' + (cat.tot - cat.incompleti) + ' su ' + cat.tot + '</span></div>' +
+        '<div class="progresso"><span style="width:' + ((cat.tot - cat.incompleti) / cat.tot * 100).toFixed(1) + '%"></span></div>' +
+        riga('Senza prezzo d\'acquisto', String(cat.senzaAcq)) + riga('Senza IVA', String(cat.senzaIva)) +
+        (cat.nomi.length ? '<details class="blocco"><summary>Quali sono</summary><div class="corpo"><p class="piccolo" style="margin-top:0">Si completano nella scheda del prodotto in Magazzino.</p>' + cat.nomi.slice(0, 300).map(n => '<div class="r"><span>' + esc(n) + '</span><span></span></div>').join('') + '</div></details>' : '');
+    } else html += '<p class="piccolo" style="margin:0">Collega il telefono in Altro: qui vedrai quanti prodotti del Magazzino non hanno ancora prezzo d\'acquisto o IVA.</p>';
+    html += '</div><p class="piccolo" style="margin-top:14px">Numeri dal Magazzino: chiusure della sera e prodotti.' + (collegato && SYS.ultimo ? ' ' + esc(syTesto()) + '.' : '') + '</p>';
     return html;
   }
 
@@ -1019,7 +1182,7 @@
       : '<p class="piccolo" style="margin:0 0 8px">Collega questo telefono al negozio, così Anita e Alessia vedono le stesse cose. Si usa la stessa email e la stessa password di Magazzino (' + esc(SYNC_CONF.email) + '). Si scrive una volta sola su ogni telefono; serve internet.</p><label class="campo largo"><span>Password del negozio</span><input id="sy-pw" type="password" autocomplete="current-password"></label><button class="btn primario" data-act="sync-collega">Collega questo telefono</button>') + '</div>';
     html += '<div class="sezione">Magazzino</div><div class="gruppo"><p class="piccolo" style="margin:0">' + (syAttiva() ? 'I prodotti e i prezzi si leggono dal Magazzino e si aggiornano da soli.' : 'Collega il telefono qui sopra e i prodotti e i prezzi del Magazzino arrivano da soli.') + '</p><a class="btn" href="' + MAG_URL + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none">Apri Magazzino</a></div>';
     html += '<div class="sezione">Copia di sicurezza</div><div class="gruppo"><button class="btn" data-act="backup">Salva backup</button><button class="btn" data-act="ripristina">Carica un backup</button><button class="btn pericolo" data-act="ripristina-compiti">Rimetti i compiti iniziali</button></div>';
-    html += '<p class="piccolo" style="margin-top:18px">Lavoro 2.2.2 · i dati restano su questo telefono.</p>';
+    html += '<p class="piccolo" style="margin-top:18px">Lavoro 2.3.0 · i dati restano su questo telefono.</p>';
     return html;
   }
 
@@ -1061,7 +1224,7 @@
   /* =========================================================
      Routing
      ========================================================= */
-  const PAGINE = { oggi: viewOggi, settimana: viewSettimana, preventivi: viewPreventivi, prepara: viewPrepara, prodotti: viewProdotti, piatti: viewPiatti, menu: viewMenu, impostazioni: viewImpostazioni };
+  const PAGINE = { oggi: viewOggi, settimana: viewSettimana, obiettivi: viewObiettivi, preventivi: viewPreventivi, prepara: viewPrepara, prodotti: viewProdotti, piatti: viewPiatti, menu: viewMenu, impostazioni: viewImpostazioni };
   const TAB = { prodotti: 'prepara', piatti: 'prepara', menu: 'prepara', servizio: 'prepara', prev: 'preventivi' };
   function render() {
     const h = (location.hash || '#oggi').slice(1), parti = h.split('/'), pg = parti[0];
@@ -1398,6 +1561,41 @@
       else { try { new Notification(testo, { body: corpo }); } catch (e) { } }
     });
   }
+  /* =========================================================
+     Compiti portati dagli aggiornamenti (una volta sola su ogni telefono)
+     - i compiti nuovi entrano se non ci sono già; uno tolto su un altro telefono non torna
+     - i compiti iniziali si cambiano solo se nessuno li ha già modificati
+     ========================================================= */
+  const AGGIORNAMENTI = [{
+    id: '2026-11',
+    nuovi: [
+      { id: 'n26-cat', t: 'Carica i prodotti mancanti in Magazzino', n: 'Con prezzo d\'acquisto e IVA, prima quelli che si vendono di più. Per pane e dolci il prezzo d\'acquisto è il costo degli ingredienti, anche stimato', da: '18:00', a: '19:00', chi: ['a'], g: TUTTI.slice(), data: null },
+      { id: 'n26-costi', t: 'Costi fissi per Matteo', n: 'Estratto conto del negozio degli ultimi 12 mesi, oppure l\'elenco delle spese fisse: affitto, bollette, INPS, Alessia, assicurazione, POS, rate', da: '15:30', a: '16:30', chi: ['m'], g: null, data: '2026-11-05' },
+      { id: 'n26-cat14', t: 'Catalogo completo entro oggi', n: 'In Obiettivi: nessun prodotto senza prezzo d\'acquisto o IVA', da: '18:00', a: '19:00', chi: ['a'], g: null, data: '2026-11-14' },
+      { id: 'n26-olio', t: 'Prezzi di olio, aceto e condimenti', n: 'A ottobre venduti in perdita: controlla in Magazzino prezzo d\'acquisto e prezzo di vendita', da: '15:30', a: '16:30', chi: ['m'], g: null, data: '2026-11-19' },
+      { id: 'n26-riep', t: 'Riepilogo di novembre a Matteo', n: 'Dopo la chiusura: Magazzino → Cruscotto → Riepilogo del mese → Scarica in Excel, e mandalo a Matteo', da: '20:00', a: '20:30', chi: ['a'], g: null, data: '2026-11-30' }
+    ],
+    cambi: [
+      { id: 'chi', se: { n: 'Cassa, scadenze del giorno, cosa manca per domani' }, metti: { n: NOTA_CHIUSURA } },
+      { id: 'lis', se: { da: '18:00', a: '19:30' }, metti: { da: '19:00' } },
+      { id: 'ban2', se: { n: '' }, metti: { n: VENDITA } },
+      { id: 'sbn', se: { n: '' }, metti: { n: VENDITA } },
+      { id: 'ban3', se: { n: '' }, metti: { n: VENDITA } }
+    ]
+  }];
+  function aggiornaCompiti() {
+    if (!Array.isArray(D.aggiornati)) D.aggiornati = [];
+    const tolto = id => { const r = SY.rec['compiti~' + id]; return !!(r && r.del); };
+    let cambiato = false;
+    AGGIORNAMENTI.forEach(ag => {
+      if (D.aggiornati.indexOf(ag.id) > -1) return;
+      ag.nuovi.forEach(t => { if (!D.compiti.some(x => x.id === t.id) && !tolto(t.id)) D.compiti.push(JSON.parse(JSON.stringify(t))); });
+      ag.cambi.forEach(c => { const t = D.compiti.find(x => x.id === c.id); if (t && Object.keys(c.se).every(k => (t[k] == null ? '' : t[k]) === c.se[k])) Object.assign(t, c.metti); });
+      D.aggiornati.push(ag.id); cambiato = true;
+    });
+    if (cambiato) salva();
+  }
+  aggiornaCompiti();
   syAvvia();
   setInterval(() => { controllaAvvisi(); if (!document.hidden && (location.hash || '#oggi') === '#oggi' && !$('#modal').open) render(); }, 60000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { controllaAvvisi(); if ((location.hash || '#oggi') === '#oggi') render(); } });

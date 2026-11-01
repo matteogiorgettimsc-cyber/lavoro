@@ -175,7 +175,7 @@ ul.piano li { display: grid; grid-template-columns: 104px 1fr; gap: 10px; paddin
 .menu-riga.nuovo { grid-template-columns: 1fr 96px 96px; margin-bottom: 8px; }
 .menu-riga select { min-height: 44px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); width: 100%; }
 .scelta.lungo span { justify-content: flex-start; text-align: left; }
-.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, 1fr); background: var(--navy); color: var(--navy-ink); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: grid; grid-template-columns: repeat(6, 1fr); background: var(--navy); color: var(--navy-ink); padding-bottom: env(safe-area-inset-bottom, 0px); }
 .nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 62px; text-decoration: none; font-size: 0.7rem; font-weight: 600; opacity: 0.7; position: relative; }
 .nav a svg { width: 24px; height: 24px; }
 .nav a[aria-current="page"] { opacity: 1; }
@@ -226,3 +226,26 @@ details.blocco .corpo { padding: 0 14px 14px; }
 .consiglio { font-family: var(--serif); font-size: 1.05rem; background: var(--blue-soft); border-left: 4px solid var(--blue); color: var(--ink); border-radius: var(--r); padding: 12px 14px; margin: 0 0 12px; font-size: 1rem; line-height: 1.4; }
 details.altro { margin: 18px 0 8px; border-top: 1px solid var(--line); padding-top: 10px; }
 details.altro summary { cursor: pointer; color: var(--ink-soft); font-size: 0.9rem; min-height: 44px; display: flex; align-items: center; }
+
+/* ---------- obiettivi del mese (2.3.0) ---------- */
+.kpi .verde b { color: var(--green); }
+.kpi small { display: block; color: var(--ink-faint); font-size: 0.72rem; margin-top: 2px; }
+.obiettivo-link { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; text-decoration: none; background: var(--amber-soft); border: 1px solid var(--line); border-left: 4px solid var(--kraft); border-radius: var(--r); padding: 10px 12px 10px 14px; margin-bottom: 16px; }
+.obiettivo-link span { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--amber); }
+.obiettivo-link b { grid-column: 1; font-weight: 650; }
+.obiettivo-link .freccia { grid-column: 2; grid-row: 1 / span 2; font-style: normal; font-size: 1.6rem; color: var(--ink-faint); }
+ol.abitudini { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; counter-reset: ab; }
+ol.abitudini li { display: grid; grid-template-columns: 36px 1fr; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px; }
+ol.abitudini li::before { counter-increment: ab; content: counter(ab); width: 36px; height: 36px; border-radius: 50%; background: var(--navy); color: var(--navy-ink); display: grid; place-items: center; font-weight: 700; }
+.sett { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px 6px; margin-bottom: 8px; }
+.sett.corrente { border: 2px solid var(--kraft); }
+.sett-testa { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
+.sett ul { list-style: none; margin: 0; padding: 0; }
+.sett li { display: grid; grid-template-columns: 24px 1fr; gap: 10px; align-items: start; padding: 8px 0; border-top: 1px solid var(--line); }
+.sett li .ico { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 0.78rem; font-weight: 800; background: var(--blue-soft); color: var(--blue); }
+.sett li.ok .ico { background: var(--green); color: #fff; }
+.sett li.no .ico { background: var(--red-soft); color: var(--red); }
+.tag.ok { background: var(--green-soft); color: var(--green); }
+.tag.no { background: var(--red-soft); color: var(--red); }
+.progresso { height: 12px; border-radius: 6px; background: var(--blue-soft); overflow: hidden; margin: 10px 0 4px; }
+.progresso > span { display: block; height: 100%; background: var(--green); border-radius: 6px; }
